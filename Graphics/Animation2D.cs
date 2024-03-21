@@ -7,8 +7,11 @@ namespace TotallyFair.Graphics
     public class Animation2D
     {
         public Queue<Texture2D> Animation = new Queue<Texture2D>(); //Textures to make up animation
+        private Queue<Texture2D> AnimationBuffer = new Queue<Texture2D>();
         public Queue<double> DeltaTimes = new Queue<double>();      //Milliseconds to display current texture
+        private Queue<double> DeltaTimesBuffer = new Queue<double>();
         public Timer AnimationTimer = new Timer();                  //Timer to cycle through queue and present new texture
+        public bool Continuous = true;
         public bool Running = false;
 
         public void AddTexture(Texture2D NewTexture, double DeltaTime)
@@ -29,6 +32,9 @@ namespace TotallyFair.Graphics
         {
             if (DeltaTimes.Count == 0) return;                      //Cannot start if no times/animations have been added.
             Running = true;
+            //Set Buffers to save initial animation/time queue
+            AnimationBuffer = Animation;
+            DeltaTimesBuffer = DeltaTimes;
             AnimationTimer.Interval = DeltaTimes.Peek();
             AnimationTimer.Elapsed += new ElapsedEventHandler(TimerTick);
             AnimationTimer.Enabled = true;
@@ -38,18 +44,29 @@ namespace TotallyFair.Graphics
         private void TimerTick(object Sender, ElapsedEventArgs Args)
         {
             //Cycle through Texture & DeltaTime Queues
-            Animation.Enqueue(Animation.Peek());
-            DeltaTimes.Enqueue(DeltaTimes.Peek());
+            Cycle();
+            //Set Interval to new DeltaTime
+            if (DeltaTimes.Count > 0) AnimationTimer.Interval = DeltaTimes.Peek();
+            else Stop(); //Stop if queue is empty
+        }
+
+        private void Cycle()
+        {
+            if (Continuous)
+            {
+                Animation.Enqueue(Animation.Peek());
+                DeltaTimes.Enqueue(DeltaTimes.Peek());
+            }
             Animation.Dequeue();
             DeltaTimes.Dequeue();
-            //Set Interval to new DeltaTime
-            AnimationTimer.Interval = DeltaTimes.Peek();
         }
 
         public void Stop()
         {
             AnimationTimer.Enabled = false;
             Running = false;
+            Animation = AnimationBuffer;
+            DeltaTimes = DeltaTimesBuffer;
         }
     }
 }

@@ -171,17 +171,25 @@ namespace TotallyFair.GameComponents
 
         public void Update()
         {
+            //Update Velocity
             Vector2 UpdateVelocity = new Vector2(0,0);
             if (Math.Abs(Velocity.X) >= 5) UpdateVelocity.X = -Velocity.X * (float)0.15;
             else UpdateVelocity.X = -Velocity.X;
             if (Math.Abs(Velocity.Y) >= 5) UpdateVelocity.Y = -Velocity.Y * (float)0.15;
             else UpdateVelocity.Y = -Velocity.Y;
             this.UpdateVelocity(UpdateVelocity);
-        }
 
-        public void Attack(Vector2 Direction)
-        {
-            //Sprite.
+            //Update AnimationState
+            switch (Sprite.CurrentState)
+            {
+                case AnimationState.IDLE:
+                    if (Velocity.X + Velocity.Y != 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGLEFT);
+                    break;
+                case AnimationState.RUNNINGLEFT:
+                    if (Velocity.X + Velocity.Y == 0) Sprite.ChangeAnimationState(AnimationState.IDLE);
+                    break;
+
+            }
         }
     }
 }

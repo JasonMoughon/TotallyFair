@@ -54,10 +54,9 @@ namespace TotallyFair
             // TODO: Add your initialization logic here
             //Initialize Game Window Settings
             Window.AllowUserResizing = true;
-
-            //_graphics.IsFullScreen = true;
-            _graphics.PreferredBackBufferWidth = 1480;
-            _graphics.PreferredBackBufferHeight = 1160;
+            _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
+            _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
+            _graphics.IsFullScreen = true;
             _graphics.ApplyChanges();
 
             //Initialize Players
@@ -69,17 +68,17 @@ namespace TotallyFair
             DealCards();
             //Initialize Vector/Color Array Items
             Players[0].Sprite.Position = new Vector2(_graphics.PreferredBackBufferWidth / 2, _graphics.PreferredBackBufferHeight - 50);
-            Players[1].Sprite.Position = new Vector2(_graphics.PreferredBackBufferWidth / 4, _graphics.PreferredBackBufferHeight * 3 / 4);
-            Players[2].Sprite.Position = new Vector2(_graphics.PreferredBackBufferWidth / 4, _graphics.PreferredBackBufferHeight / 4);
+            Players[1].Sprite.Position = new Vector2(40, _graphics.PreferredBackBufferHeight * 3 / 4);
+            Players[2].Sprite.Position = new Vector2(40, _graphics.PreferredBackBufferHeight / 4);
             Players[3].Sprite.Position = new Vector2(_graphics.PreferredBackBufferWidth / 2, 20);
-            Players[4].Sprite.Position = new Vector2(_graphics.PreferredBackBufferWidth * 3 / 4, _graphics.PreferredBackBufferHeight / 4);
-            Players[5].Sprite.Position = new Vector2(_graphics.PreferredBackBufferWidth * 3 / 4, _graphics.PreferredBackBufferHeight * 3 / 4);
-            Vector_PlayerHand[0] = new Vector2(_graphics.PreferredBackBufferWidth / 2, _graphics.PreferredBackBufferHeight - 50);
-            Vector_PlayerHand[1] = new Vector2(_graphics.PreferredBackBufferWidth / 4, _graphics.PreferredBackBufferHeight * 3 / 4);
-            Vector_PlayerHand[2] = new Vector2(_graphics.PreferredBackBufferWidth / 4, _graphics.PreferredBackBufferHeight / 4);
+            Players[4].Sprite.Position = new Vector2(_graphics.PreferredBackBufferWidth - 80, _graphics.PreferredBackBufferHeight / 4);
+            Players[5].Sprite.Position = new Vector2(_graphics.PreferredBackBufferWidth - 80, _graphics.PreferredBackBufferHeight * 3 / 4);
+            Vector_PlayerHand[0] = new Vector2(_graphics.PreferredBackBufferWidth / 2, _graphics.PreferredBackBufferHeight - 80);
+            Vector_PlayerHand[1] = new Vector2(40, _graphics.PreferredBackBufferHeight * 3 / 4);
+            Vector_PlayerHand[2] = new Vector2(40, _graphics.PreferredBackBufferHeight / 4);
             Vector_PlayerHand[3]  = new Vector2(_graphics.PreferredBackBufferWidth / 2, 20);
-            Vector_PlayerHand[4] = new Vector2(_graphics.PreferredBackBufferWidth * 3 / 4, _graphics.PreferredBackBufferHeight / 4);
-            Vector_PlayerHand[5] = new Vector2(_graphics.PreferredBackBufferWidth * 3 / 4, _graphics.PreferredBackBufferHeight * 3 / 4);
+            Vector_PlayerHand[4] = new Vector2(_graphics.PreferredBackBufferWidth - 80, _graphics.PreferredBackBufferHeight / 4);
+            Vector_PlayerHand[5] = new Vector2(_graphics.PreferredBackBufferWidth - 80, _graphics.PreferredBackBufferHeight * 3 / 4);
 
             Vector_Dealer.X = _graphics.PreferredBackBufferWidth / 2;
             Vector_Dealer.Y = _graphics.PreferredBackBufferHeight / 2;
@@ -104,24 +103,51 @@ namespace TotallyFair
             _spriteBatch = new SpriteBatch(GraphicsDevice);
 
             // TODO: use this.Content to load your game content here
-            Texture2D[] PlayerIdleTextures = new Texture2D[3];
-            double[] PlayerIdleTimes = new double[3];
+            Texture2D[] PlayerRunningTextures = new Texture2D[3];
+            double[] PlayerRunningTimes = new double[3];
+
+            Texture2D[] PlayerIdleTextures = new Texture2D[1];
+            double[] PlayerIdleTimes = new double[1];
 
             Texture2D[] PlayerStrikeBoxIdleTextures = new Texture2D[1];
             double[] PlayerStrikeBoxIdleTimes = new double[1];
-
+            
             PlayerIdleTextures[0] = Content.Load<Texture2D>("Button_Red");
-            PlayerIdleTextures[1] = Content.Load<Texture2D>("Button_Orange");
-            PlayerIdleTextures[2] = Content.Load<Texture2D>("Button_Yellow");
-            PlayerIdleTimes[0] = 500;
-            PlayerIdleTimes[1] = 1000;
-            PlayerIdleTimes[2] = 2000;
+            PlayerIdleTimes[0] = 100;
+
+            PlayerRunningTextures[0] = PlayerIdleTextures[0];
+            PlayerRunningTextures[1] = Content.Load<Texture2D>("Button_Orange");
+            PlayerRunningTextures[2] = Content.Load<Texture2D>("Button_Yellow");
+            PlayerRunningTimes[0] = 500;
+            PlayerRunningTimes[1] = 500;
+            PlayerRunningTimes[2] = 500;
 
             PlayerStrikeBoxIdleTextures[0] = Content.Load<Texture2D>("StrikeBox");
-            PlayerStrikeBoxIdleTimes[0] = 500;
+            PlayerStrikeBoxIdleTimes[0] = 1000;
 
-            Players[0].Sprite.AddAnimation(AnimationState.IDLE, PlayerIdleTextures, PlayerIdleTimes);
-            Players[0].StrikeBox.AddAnimation(AnimationState.IDLE, PlayerStrikeBoxIdleTextures, PlayerStrikeBoxIdleTimes);
+            Players[0].Sprite.AddAnimation(AnimationState.IDLE, PlayerIdleTextures, PlayerIdleTimes, true);
+            Players[0].Sprite.AddAnimation(AnimationState.RUNNINGLEFT, PlayerRunningTextures, PlayerRunningTimes, true);
+            Players[0].StrikeBox.AddAnimation(AnimationState.IDLE, PlayerStrikeBoxIdleTextures, PlayerStrikeBoxIdleTimes, false);
+
+            Players[1].Sprite.AddAnimation(AnimationState.IDLE, PlayerIdleTextures, PlayerIdleTimes, true);
+            Players[1].Sprite.AddAnimation(AnimationState.RUNNINGLEFT, PlayerRunningTextures, PlayerRunningTimes, true);
+            Players[1].StrikeBox.AddAnimation(AnimationState.IDLE, PlayerStrikeBoxIdleTextures, PlayerStrikeBoxIdleTimes, false);
+            
+            Players[2].Sprite.AddAnimation(AnimationState.IDLE, PlayerIdleTextures, PlayerIdleTimes, true);
+            Players[2].Sprite.AddAnimation(AnimationState.RUNNINGLEFT, PlayerRunningTextures, PlayerRunningTimes, true);
+            Players[2].StrikeBox.AddAnimation(AnimationState.IDLE, PlayerStrikeBoxIdleTextures, PlayerStrikeBoxIdleTimes, false);
+            
+            Players[3].Sprite.AddAnimation(AnimationState.IDLE, PlayerIdleTextures, PlayerIdleTimes, true);
+            Players[3].Sprite.AddAnimation(AnimationState.RUNNINGLEFT, PlayerRunningTextures, PlayerRunningTimes, true);
+            Players[3].StrikeBox.AddAnimation(AnimationState.IDLE, PlayerStrikeBoxIdleTextures, PlayerStrikeBoxIdleTimes, false);
+            
+            Players[4].Sprite.AddAnimation(AnimationState.IDLE, PlayerIdleTextures, PlayerIdleTimes, true);
+            Players[4].Sprite.AddAnimation(AnimationState.RUNNINGLEFT, PlayerRunningTextures, PlayerRunningTimes, true);
+            Players[4].StrikeBox.AddAnimation(AnimationState.IDLE, PlayerStrikeBoxIdleTextures, PlayerStrikeBoxIdleTimes, false);
+            
+            Players[5].Sprite.AddAnimation(AnimationState.IDLE, PlayerIdleTextures, PlayerIdleTimes, true);
+            Players[5].Sprite.AddAnimation(AnimationState.RUNNINGLEFT, PlayerRunningTextures, PlayerRunningTimes, true);
+            Players[5].StrikeBox.AddAnimation(AnimationState.IDLE, PlayerStrikeBoxIdleTextures, PlayerStrikeBoxIdleTimes, false);
             GameFont = Content.Load<SpriteFont>("Arial");
 
         }
@@ -149,8 +175,9 @@ namespace TotallyFair
             {
                 _spriteBatch.DrawString(GameFont, $"{Players[i].Hand[0].FaceValue}", Vector_PlayerHand[i], Color.White);
                 _spriteBatch.DrawString(GameFont, $"{Players[i].Hand[1].FaceValue}", new Vector2(Vector_PlayerHand[i].X, Vector_PlayerHand[i].Y + 25), Color.White);
+                Players[i].Sprite.Play(_spriteBatch);
+                if (Players[i].StrikeBox.Visible) Players[i].StrikeBox.Play(_spriteBatch);
             }
-            Players[0].Sprite.Play(_spriteBatch);
 
             //_spriteBatch.Draw(Players[0].Sprite.SpriteTexture, Players[0].Sprite.Position, null, Color.White, Players[0].Sprite.Rotation, new Vector2(Players[0].Sprite.SpriteTexture.Width, Players[0].Sprite.SpriteTexture.Height), 1, SpriteEffects.None, 0);
             //_spriteBatch.Draw(Players[0].StrikeBox.SpriteTexture, Players[0].StrikeBox.Position, null, Color.White, Players[0].StrikeBox.Rotation, new Vector2(Players[0].StrikeBox.SpriteTexture.Width, Players[0].StrikeBox.SpriteTexture.Height), 1, SpriteEffects.None, 0);
@@ -182,18 +209,19 @@ namespace TotallyFair
 
         private void UpdatePositions(float DeltaTime)
         {
-            Players[0].Sprite.Position.X += Players[0].Velocity.X * DeltaTime;
-            Players[0].Sprite.Position.Y += Players[0].Velocity.Y * DeltaTime;
+            foreach (Player P in Players)
+            {
+                P.Sprite.Position.X += P.Velocity.X * DeltaTime;
+                P.Sprite.Position.Y += P.Velocity.Y * DeltaTime;
 
-            //Clamp to bounds of window
-            if (Players[0].Sprite.Position.X + Players[0].Sprite.AnimationLibrary[Players[0].Sprite.CurrentState].Animation.Peek().Width > _graphics.PreferredBackBufferWidth) Players[0].Sprite.Position.X = _graphics.PreferredBackBufferWidth - Players[0].Sprite.AnimationLibrary[Players[0].Sprite.CurrentState].Animation.Peek().Width;
-            if (Players[0].Sprite.Position.X < 0) Players[0].Sprite.Position.X = 0;
-            if (Players[0].Sprite.Position.Y + Players[0].Sprite.AnimationLibrary[Players[0].Sprite.CurrentState].Animation.Peek().Height > _graphics.PreferredBackBufferHeight) Players[0].Sprite.Position.Y = _graphics.PreferredBackBufferHeight - Players[0].Sprite.AnimationLibrary[Players[0].Sprite.CurrentState].Animation.Peek().Height;
-            if (Players[0].Sprite.Position.Y < 0) Players[0].Sprite.Position.Y = 0;
+                //Clamp to bounds of window
+                if (P.Sprite.Position.X + P.Sprite.AnimationLibrary[P.Sprite.CurrentState].Animation.Peek().Width > _graphics.PreferredBackBufferWidth) P.Sprite.Position.X = _graphics.PreferredBackBufferWidth - P.Sprite.AnimationLibrary[P.Sprite.CurrentState].Animation.Peek().Width;
+                if (P.Sprite.Position.X < 0) P.Sprite.Position.X = 0;
+                if (P.Sprite.Position.Y + P.Sprite.AnimationLibrary[P.Sprite.CurrentState].Animation.Peek().Height > _graphics.PreferredBackBufferHeight) P.Sprite.Position.Y = _graphics.PreferredBackBufferHeight - P.Sprite.AnimationLibrary[P.Sprite.CurrentState].Animation.Peek().Height;
+                if (P.Sprite.Position.Y < 0) P.Sprite.Position.Y = 0;
 
-            //Players[0].StrikeBox
-
-            Players[0].Update();
+                P.Update();
+            }
         }
 
         private void DealCards()
@@ -252,7 +280,7 @@ namespace TotallyFair
         private void GameAction_Attack()
         {
             Players[0].StrikeBox.Rotation = (float)Math.Atan(Mouse.GetState().X - (Players[0].Sprite.Position.X + Players[0].Sprite.AnimationLibrary[Players[0].Sprite.CurrentState].Animation.Peek().Width / 2) / (Mouse.GetState().Y - (Players[0].Sprite.Position.Y - Players[0].Sprite.AnimationLibrary[Players[0].Sprite.CurrentState].Animation.Peek().Height / 2)));;
-            //Players[0].Attack(new Vector2(Mouse.GetState().X - (Players[0].Position.X + Players[0].Sprite.SpriteTexture.Width / 2), Mouse.GetState().Y - (Players[0].Position.Y - Players[0].Sprite.SpriteTexture.Height / 2)));
+            Players[0].StrikeBox.Visible = true;      
         }
     }
 }
