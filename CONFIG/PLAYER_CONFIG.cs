@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace TotallyFair.CONFIG
 {
-    internal class PLAYER_CONFIG
+    public class PLAYER_CONFIG
     {
         public bool IS_CPU { get; } = true;
 

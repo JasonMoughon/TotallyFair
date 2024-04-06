@@ -1,38 +1,45 @@
 ﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System.Collections.Generic;
+using System.Drawing;
 
 namespace TotallyFair.Graphics
 {
     public class GameSprite2D
     {
         public Dictionary<AnimationState, Animation2D> AnimationLibrary = new Dictionary<AnimationState, Animation2D>();
-        public AnimationState CurrentState { get; private set; } = AnimationState.IDLE;
-        public Vector2 Position = new Vector2();
-        public float Rotation = 0;
-        public bool Visible = false;
+        public AnimationState CurrentState { get; private set; }
+        public Size SpriteSize;
+        public Vector2 Position;
+        public float Rotation;
+        public bool Visible;
 
-        public void AddAnimation(AnimationState Name, Texture2D[] Textures, double[] DeltaTimes, bool Continuous)
+        public GameSprite2D(Vector2 position, AnimationState state, Texture2D[] textures, float deltaTime, bool continuous)
         {
-            //Need equivalent number of DeltaTimes as Textures
-            if (Textures.Length != DeltaTimes.Length) return;
-
-            AnimationLibrary.Add(Name, new Animation2D());
-            AnimationLibrary[Name].Continuous = Continuous;
-            for (int i = 0; i < Textures.Length; i++) AnimationLibrary[Name].AddTexture(Textures[i], DeltaTimes[i]);
+            Position = position;
+            CurrentState = state;
+            AddAnimation(state, textures, deltaTime, continuous);
         }
 
-        public void RemoveAnimation(AnimationState Name)
+        public void AddAnimation(AnimationState state, Texture2D[] textures, float deltaTime, bool continuous)
+        {
+            SpriteSize = new Size(textures[0].Width, textures[0].Height);
+            AnimationLibrary.Add(state, new Animation2D());
+            AnimationLibrary[state].Continuous = continuous;
+            AnimationLibrary[state].AddAnimation(textures, deltaTime);
+        }
+
+        public void RemoveAnimation(AnimationState state)
         {  
-            AnimationLibrary.Remove(Name);
+            AnimationLibrary.Remove(state);
         }
 
-        public void ChangeAnimationState(AnimationState State)
+        public void ChangeAnimationState(AnimationState state)
         {
-            if (AnimationLibrary.ContainsKey(State))
+            if (AnimationLibrary.ContainsKey(state))
             {
                 AnimationLibrary[CurrentState].Stop();
-                CurrentState = State;
+                CurrentState = state;
             }
         }
 
@@ -41,20 +48,20 @@ namespace TotallyFair.Graphics
             AnimationLibrary[CurrentState].Start();
         }
 
-        public void Play(SpriteBatch Batch)
+        public void Play(SpriteBatch batch)
         {
             if (AnimationLibrary.ContainsKey(CurrentState))
             {
                 if (!AnimationLibrary[CurrentState].Running) Start();
-                Update(Batch);
+                Update(batch);
             }
         }
 
-        public void Update(SpriteBatch Batch)
+        public void Update(SpriteBatch batch)
         {
             if (!IsRunning()) Visible = false;
-            Texture2D CurrentTexture = AnimationLibrary[CurrentState].Animation.Peek();
-            Batch.Draw(CurrentTexture, Position, null, Color.White, Rotation, new Vector2(CurrentTexture.Width, CurrentTexture.Height), 1, SpriteEffects.None, 0);
+            Texture2D CurrentTexture = AnimationLibrary[CurrentState].GetCurrentTexture();
+            batch.Draw(CurrentTexture, Position, null, Microsoft.Xna.Framework.Color.White, Rotation, new Vector2(CurrentTexture.Width/2, CurrentTexture.Height/2), 1, SpriteEffects.None, 1f);
         }
 
         private bool IsRunning()

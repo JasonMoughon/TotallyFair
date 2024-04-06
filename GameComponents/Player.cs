@@ -10,7 +10,7 @@ using TotallyFair.Graphics;
 
 namespace TotallyFair.GameComponents
 {
-    internal class Player
+    public class Player
     {
         private static PLAYER_CONFIG DEFAULT_PLAYER = new PLAYER_CONFIG();
 
@@ -27,11 +27,8 @@ namespace TotallyFair.GameComponents
         public int OffensiveStat = DEFAULT_PLAYER.DEFAULT_OFFENSIVE_STAT;
         public int TotalHealth = DEFAULT_PLAYER.DEFAULT_HEALTH;
         public int HealthCapacity = DEFAULT_PLAYER.DEFAULT_HEALTH;
-        public GameSprite2D Sprite = new GameSprite2D();
-        public GameSprite2D StrikeBox = new GameSprite2D();
+        public GameSprite2D Sprite;
         public Vector2 Velocity = new Vector2(0, 0);
-        //public Vector2 Position = new Vector2(0, 0);
-
 
         ///////////////////////////////////////////////////////////////////////
         // Player parameters useful for computer players.                    //
@@ -39,6 +36,11 @@ namespace TotallyFair.GameComponents
         public int HandWeight;
         public Dictionary<string, Card[]> OpponentHands;
 
+        public Player(string playerName, Vector2 position, AnimationState state, Texture2D[] textures, float deltaTime, bool continuous)
+        {
+            Name = playerName;
+            Sprite = new GameSprite2D(position, state, textures, deltaTime, continuous);
+        }
         public void AddDefensiveStats(int Stat)
         {
             DefensiveStat += Stat;
@@ -169,13 +171,20 @@ namespace TotallyFair.GameComponents
             if (Math.Abs(Velocity.Y) > DEFAULT_PLAYER.MAX_VELOCITY && Velocity.Y > 0) Velocity.Y = DEFAULT_PLAYER.MAX_VELOCITY;
         }
 
+        public void Chase(Vector2 Target)
+        {
+            Vector2 Velocity = new( Target.X - Sprite.Position.X , Target.Y - Sprite.Position.Y );
+            float c = (float)Math.Sqrt(Math.Pow(Velocity.X, 2) + Math.Pow(Velocity.Y, 2));
+            UpdateVelocity(new Vector2((500 / c) * Velocity.X, (500 / c) * Velocity.Y));
+        }
+
         public void Update()
         {
             //Update Velocity
             Vector2 UpdateVelocity = new Vector2(0,0);
-            if (Math.Abs(Velocity.X) >= 5) UpdateVelocity.X = -Velocity.X * (float)0.15;
+            if (Math.Abs(Velocity.X) >= 50) UpdateVelocity.X = -Velocity.X * (float)0.15;
             else UpdateVelocity.X = -Velocity.X;
-            if (Math.Abs(Velocity.Y) >= 5) UpdateVelocity.Y = -Velocity.Y * (float)0.15;
+            if (Math.Abs(Velocity.Y) >= 50) UpdateVelocity.Y = -Velocity.Y * (float)0.15;
             else UpdateVelocity.Y = -Velocity.Y;
             this.UpdateVelocity(UpdateVelocity);
 
@@ -183,10 +192,18 @@ namespace TotallyFair.GameComponents
             switch (Sprite.CurrentState)
             {
                 case AnimationState.IDLE:
-                    if (Velocity.X + Velocity.Y != 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGLEFT);
+                    if (Velocity.X < 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGLEFT);
+                    if (Velocity.X > 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGRIGHT);
+                    if (Velocity.X == 0 && Velocity.Y < 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGLEFT);
+                    if (Velocity.X == 0 && Velocity.Y > 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGRIGHT);
                     break;
                 case AnimationState.RUNNINGLEFT:
-                    if (Velocity.X + Velocity.Y == 0) Sprite.ChangeAnimationState(AnimationState.IDLE);
+                    if (Velocity.X == 0 && Velocity.Y == 0) Sprite.ChangeAnimationState(AnimationState.IDLE);
+                    if (Velocity.X > 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGRIGHT);
+                    break;
+                case AnimationState.RUNNINGRIGHT:
+                    if (Velocity.X == 0 && Velocity.Y == 0) Sprite.ChangeAnimationState(AnimationState.IDLE);
+                    if (Velocity.X < 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGLEFT);
                     break;
 
             }

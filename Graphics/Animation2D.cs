@@ -1,72 +1,76 @@
-﻿using Microsoft.Xna.Framework.Graphics;
+﻿using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using System;
 using System.Collections.Generic;
+using System.Reflection.Metadata.Ecma335;
 using System.Timers;
 
 namespace TotallyFair.Graphics
 {
     public class Animation2D
     {
-        public Queue<Texture2D> Animation = new Queue<Texture2D>(); //Textures to make up animation
-        private Queue<Texture2D> AnimationBuffer = new Queue<Texture2D>();
-        public Queue<double> DeltaTimes = new Queue<double>();      //Milliseconds to display current texture
-        private Queue<double> DeltaTimesBuffer = new Queue<double>();
+        
+        public Texture2D[] Animation;
+        public float DeltaTime;
+        private int _Index = 0;
         public Timer AnimationTimer = new Timer();                  //Timer to cycle through queue and present new texture
         public bool Continuous = true;
         public bool Running = false;
 
-        public void AddTexture(Texture2D NewTexture, double DeltaTime)
+        public Animation2D()
         {
-            if (DeltaTime < 100) DeltaTime = 100;                   //Minimum display time for each animation
-            Animation.Enqueue(NewTexture);
-            DeltaTimes.Enqueue(DeltaTime);
+            AnimationTimer.Elapsed += new ElapsedEventHandler(TimerTick);
+        }
+
+        public void AddAnimation(Texture2D[] newTextures, float newTime)
+        {
+            Animation = newTextures;
+            DeltaTime = newTime;
+            if (DeltaTime < 10) DeltaTime = 10;    //Minimum display time for each texture
         }
 
         public void DeleteAnimations()
         {
             Stop();
-            Animation = new Queue<Texture2D>();
-            DeltaTimes = new Queue<double>();
+            Array.Resize(ref Animation, 0);
         }
 
         public void Start()
         {
-            if (DeltaTimes.Count == 0) return;                      //Cannot start if no times/animations have been added.
+            if (DeltaTime == 0f) return;                     //Cannot start if no times/animations have been added.
+            AnimationTimer.Interval = DeltaTime;
             Running = true;
-            //Set Buffers to save initial animation/time queue
-            AnimationBuffer = Animation;
-            DeltaTimesBuffer = DeltaTimes;
-            AnimationTimer.Interval = DeltaTimes.Peek();
-            AnimationTimer.Elapsed += new ElapsedEventHandler(TimerTick);
-            AnimationTimer.Enabled = true;
             AnimationTimer.Start();
+            _Index = 0;
         }
 
-        private void TimerTick(object Sender, ElapsedEventArgs Args)
+        private void TimerTick(Object sender, ElapsedEventArgs args)
         {
-            //Cycle through Texture & DeltaTime Queues
-            Cycle();
-            //Set Interval to new DeltaTime
-            if (DeltaTimes.Count > 0) AnimationTimer.Interval = DeltaTimes.Peek();
-            else Stop(); //Stop if queue is empty
-        }
-
-        private void Cycle()
-        {
-            if (Continuous)
+            if (!Running) return;
+            _Index += 1;
+            if (_Index >= Animation.Length)
             {
-                Animation.Enqueue(Animation.Peek());
-                DeltaTimes.Enqueue(DeltaTimes.Peek());
+                if (Continuous) _Index = 0;
+                else Stop();
             }
-            Animation.Dequeue();
-            DeltaTimes.Dequeue();
         }
 
         public void Stop()
         {
-            AnimationTimer.Enabled = false;
             Running = false;
-            Animation = AnimationBuffer;
-            DeltaTimes = DeltaTimesBuffer;
+            AnimationTimer.Stop();
+            _Index = 0;        
+        }
+
+        public Texture2D GetCurrentTexture()
+        {
+            if (Animation.Length == 0) return null;
+
+            //Sanity Check
+            if (_Index >= Animation.Length) _Index = Animation.Length - 1;
+            if (_Index < 0) _Index = 0;
+
+            return Animation[_Index];
         }
     }
 }
