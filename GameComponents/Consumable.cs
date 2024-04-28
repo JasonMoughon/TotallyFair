@@ -8,5 +8,10 @@ namespace TotallyFair.GameComponents
 {
     public class Consumable
     {
+
+        public void Update()
+        {
+
+        }
     }
 }

@@ -13,6 +13,7 @@ namespace TotallyFair.CONFIG
         public int DEFAULT_PLAYER_AMOUNT { get; } = 6;
         public int MAX_PLAYER_AMOUNT { get; } = 6;
         public int MIN_PLAYER_AMOUNT { get; } = 2;
+        public float TIME_CONSTANT { get; } = 0.2f;
 
         public Dictionary<int, Vector2[]> STARTING_POSITIONS;
         

@@ -30,5 +30,7 @@ namespace TotallyFair.CONFIG
         public double DEFAULT_FULLSCALE_FORGET_CHANCE { get; } = 1.0;
 
         public int MAX_VELOCITY { get; } = 25; //Pixels per Second
+
+        public float MAX_FORCE { get; } = 100000f;
     }
 }

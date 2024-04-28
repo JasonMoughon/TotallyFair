@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using System;
+using System.Collections.Generic;
 using System.Net.Mime;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
@@ -39,11 +40,13 @@ namespace TotallyFair
         private Vector2 Vector_Dealer = new Vector2(0, 0);
         private static Player[] Players = new Player[6];
         private Vector2[] Vector_PlayerHand = new Vector2[6];
+        private SceneManager _sceneManager;
 
         /************/
         /* SETTINGS */
         /************/
         private GAME_CONFIG _settings;
+        private bool _paused;
 
         /*****************/
         /* MISCELLANEOUS */
@@ -68,8 +71,11 @@ namespace TotallyFair
             _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width;
             _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
             _graphics.ApplyChanges();
-            _map = new Map(Content.Load<Texture2D>("Map"));
-            _settings = new GAME_CONFIG(_map);
+
+            //_map = new Map(Content.Load<Texture2D>("Map"));
+            _sceneManager = new(Content.Load<Texture2D>("Map"));
+
+            _settings = new GAME_CONFIG(_sceneManager.SceneMap);
 
             //Initialize Vector/Color Array Items
             Vector_PlayerHand[0] = new Vector2(_graphics.PreferredBackBufferWidth / 2, _graphics.PreferredBackBufferHeight - 80);
@@ -90,6 +96,7 @@ namespace TotallyFair
             InputListener.AddKeyPressHandler(true, GameAction_MoveLeft, Keys.A);
             InputListener.AddKeyPressHandler(true, GameAction_MoveUp, Keys.W);
             InputListener.AddKeyPressHandler(true, GameAction_MoveDown, Keys.S);
+            InputListener.AddKeyPressHandler(false, GameAction_PauseGame, Keys.P);
             InputListener.AddMouseHandler(false, GameAction_Attack, InputManager.MouseClickState.LEFT);
 
             base.Initialize();
@@ -125,12 +132,14 @@ namespace TotallyFair
             PlayerRunningLeftTextures[5] = Content.Load<Texture2D>("Bonk-RunLeft6");
 
             //Initialize Players
-            for (int i = 0; i < Players.Length; i++)
+            for (int i = 0; i < 2; i++)
             {
-                Players[i] = new Player($"Player{i+1}", _settings.STARTING_POSITIONS[6][i], AnimationState.IDLE, PlayerIdleTextures, PlayerIdleTime, true);
-                Players[i].Sprite.AddAnimation(AnimationState.RUNNINGLEFT, PlayerRunningLeftTextures, PlayerRunningTime, true);
-                Players[i].Sprite.AddAnimation(AnimationState.RUNNINGRIGHT, PlayerRunningTextures, PlayerRunningTime, true);
-                if (i == 0) Players[i].IsCPU = false;
+                _sceneManager.AddPlayer(i, _settings.STARTING_POSITIONS[2][i], AnimationState.IDLE, PlayerIdleTextures, PlayerIdleTime, true);
+                _sceneManager.Players[i].Object.Sprite.AddAnimation(AnimationState.RUNNINGLEFT, PlayerRunningLeftTextures, PlayerRunningTime, true);
+                _sceneManager.Players[i].Object.Sprite.AddAnimation(AnimationState.RUNNINGRIGHT, PlayerRunningTextures, PlayerRunningTime, true);
+
+                //By Default, first player is human
+                if (i == 0) _sceneManager.Players[i].Object.IsCPU = false;
             }
 
             GameFont = Content.Load<SpriteFont>("Arial");
@@ -144,7 +153,8 @@ namespace TotallyFair
         {
             //Listen for known events
             InputListener.Update();
-            UpdatePositions((float)0.001);
+
+            if (!_paused) _sceneManager.Update();
 
             Window.ClientSizeChanged += OnResize;
 
@@ -159,7 +169,7 @@ namespace TotallyFair
             // TODO: Add your drawing code here
 
             _spriteBatch.Begin();
-            _map.Draw(_spriteBatch, _graphics);
+            /*_map.Draw(_spriteBatch, _graphics);
 
             for (int i = 0; i < Players.Length; i++)
             {
@@ -167,28 +177,16 @@ namespace TotallyFair
                 _spriteBatch.DrawString(GameFont, $"{Players[i].Hand[1].FaceValue}", new Vector2(Vector_PlayerHand[i].X, Vector_PlayerHand[i].Y + 25), Color.White);
                 Players[i].Sprite.Play(_spriteBatch);
             }
+            
 
             //_spriteBatch.Draw(Players[0].Sprite.SpriteTexture, Players[0].Sprite.Position, null, Color.White, Players[0].Sprite.Rotation, new Vector2(Players[0].Sprite.SpriteTexture.Width, Players[0].Sprite.SpriteTexture.Height), 1, SpriteEffects.None, 0);
             //_spriteBatch.Draw(Players[0].StrikeBox.SpriteTexture, Players[0].StrikeBox.Position, null, Color.White, Players[0].StrikeBox.Rotation, new Vector2(Players[0].StrikeBox.SpriteTexture.Width, Players[0].StrikeBox.SpriteTexture.Height), 1, SpriteEffects.None, 0);
-
+            */
+            if (!_paused) _sceneManager.Draw(_spriteBatch, _graphics);
+            else _spriteBatch.DrawString(GameFont, "PAUSED", new(_graphics.PreferredBackBufferWidth / 2,_graphics.PreferredBackBufferHeight / 2), Color.White);
             _spriteBatch.End();
-
+            
             base.Draw(gameTime);
-        }
-
-        private static void TimerTick(object timerState)
-        {
-            if (Players == null || !DoneInitializing) return;
-            Console.WriteLine($"{DateTime.Now:HH:mm:ss.fff}: starting a new callback.");
-            var state = timerState as TimerState;
-            Interlocked.Increment(ref state.Counter);
-
-            for (int i = 0; i < Players.Length; i++) Players[i].ForgetOpponentHand();
-        }
-
-        class TimerState
-        {
-            public int Counter;
         }
 
         private void OnResize(Object  sender, EventArgs e)
@@ -196,27 +194,9 @@ namespace TotallyFair
             //RepositionGameSprites();
         }
 
-        private void UpdatePositions(float DeltaTime)
-        {
-            foreach (Player P in Players)
-            {
-                if (P.IsCPU) P.Chase(Players[0].Sprite.Position);
-                P.Sprite.Position.X += P.Velocity.X * DeltaTime;
-                P.Sprite.Position.Y += P.Velocity.Y * DeltaTime;
-
-                //Clamp to bounds of window
-                if (P.Sprite.Position.X > _graphics.PreferredBackBufferWidth) P.Sprite.Position.X = _graphics.PreferredBackBufferWidth;
-                if (P.Sprite.Position.X - P.Sprite.AnimationLibrary[P.Sprite.CurrentState].GetCurrentTexture().Width < 0) P.Sprite.Position.X = P.Sprite.AnimationLibrary[P.Sprite.CurrentState].GetCurrentTexture().Width;
-                if (P.Sprite.Position.Y > _graphics.PreferredBackBufferHeight) P.Sprite.Position.Y = _graphics.PreferredBackBufferHeight;
-                if (P.Sprite.Position.Y - P.Sprite.AnimationLibrary[P.Sprite.CurrentState].GetCurrentTexture().Height < 0) P.Sprite.Position.Y = P.Sprite.AnimationLibrary[P.Sprite.CurrentState].GetCurrentTexture().Height;
-
-                P.Update();
-            }
-        }
-
         private void DealCards()
         {
-            for (int i = 0; i < 2; i++) foreach (Player p in Players) p.AddCardToHand(Deck.DealCard(), i);
+            for (int i = 0; i < 2; i++) foreach (KeyValuePair<int, GameObject<Player>> p in _sceneManager.Players) p.Value.Object.AddCardToHand(Deck.DealCard(), i);
         }
 
         /////////////////////////////////////////
@@ -249,28 +229,33 @@ namespace TotallyFair
 
         private void GameAction_MoveRight()
         {
-            Players[0].UpdateVelocity(new Vector2(500,0));
+            _sceneManager.Players[0].Object.UpdateVelocity(new Vector2(2000,0), _settings.TIME_CONSTANT);
         }
 
         private void GameAction_MoveLeft()
         {
-            Players[0].UpdateVelocity(new Vector2(-500, 0));
+            _sceneManager.Players[0].Object.UpdateVelocity(new Vector2(-2000, 0), _settings.TIME_CONSTANT);
         }
 
         private void GameAction_MoveUp()
         {
-            Players[0].UpdateVelocity(new Vector2(0, -500));
+            _sceneManager.Players[0].Object.UpdateVelocity(new Vector2(0, -2000), _settings.TIME_CONSTANT);
         }
 
         private void GameAction_MoveDown()
         {
-            Players[0].UpdateVelocity(new Vector2(0, 500));
+            _sceneManager.Players[0].Object.UpdateVelocity(new Vector2(0, 2000), _settings.TIME_CONSTANT);
         }
 
         private void GameAction_Attack()
         {
             //Players[0].StrikeBox.Rotation = (float)Math.Atan(Mouse.GetState().X - (Players[0].Sprite.Position.X + Players[0].Sprite.AnimationLibrary[Players[0].Sprite.CurrentState].Animation.Peek().Width / 2) / (Mouse.GetState().Y - (Players[0].Sprite.Position.Y - Players[0].Sprite.AnimationLibrary[Players[0].Sprite.CurrentState].Animation.Peek().Height / 2)));;
             //Players[0].StrikeBox.Visible = true;      
+        }
+
+        private void GameAction_PauseGame()
+        {
+            _paused = !_paused;
         }
     }
 }
