@@ -10,36 +10,31 @@ using TotallyFair.Graphics;
 
 namespace TotallyFair.GameComponents
 {
-    public class Player
+    public class Player : Collidable
     {
         private static PLAYER_CONFIG DEFAULT_PLAYER = new PLAYER_CONFIG();
 
-        ///////////////////////////////////////////////////////////////////////
-        // Player parameters useful for user and computer players.           //
-        ///////////////////////////////////////////////////////////////////////
+        private Vector2 _position;
         public bool GameWon = false; //No Default Config for obvious reasons
-        public bool IsCPU = DEFAULT_PLAYER.IS_CPU;
         public bool IsAttacking = false;
-        public string Name = DEFAULT_PLAYER.NAME;
         public Card[] Hand = new Card[DEFAULT_PLAYER.DEFAULT_HAND_SIZE];
         public int DefensiveStat = DEFAULT_PLAYER.DEFAULT_DEFENSIVE_STAT;
         public int OffensiveStat = DEFAULT_PLAYER.DEFAULT_OFFENSIVE_STAT;
         public int TotalHealth = DEFAULT_PLAYER.DEFAULT_HEALTH;
         public int HealthCapacity = DEFAULT_PLAYER.DEFAULT_HEALTH;
-        public GameSprite2D Sprite;
-        public Vector2 Velocity = new Vector2(0, 0);
-        public float Mass = 5f;
+        //public GameSprite2D Sprite;
+        public float Mass = DEFAULT_PLAYER.DEFAULT_MASS;
 
-        ///////////////////////////////////////////////////////////////////////
-        // Player parameters useful for computer players.                    //
-        ///////////////////////////////////////////////////////////////////////
         public int HandWeight;
         public Dictionary<string, Card[]> OpponentHands;
 
-        public Player(string playerName, Vector2 position, AnimationState state, Texture2D[] textures, float deltaTime, bool continuous)
+        public Player(string playerName, Vector2 position, bool isStatic, bool isRectangular, AnimationState state, Texture2D[] textures, float deltaTime, bool continuous)
         {
+            Position = position;
             Name = playerName;
-            Sprite = new GameSprite2D(position, state, textures, deltaTime, continuous);
+            IsStatic = isStatic;
+            CollisionBox = new(position, isRectangular, textures[0].Width / 3);
+            Sprite = new GameSprite2D(state, textures, deltaTime, continuous);
         }
         public void AddDefensiveStats(int Stat)
         {
@@ -164,7 +159,7 @@ namespace TotallyFair.GameComponents
             Velocity = (Mass * Velocity / (Mass + mass)) * deltaTime;
         }
 
-        public void UpdateVelocity(Vector2 velocity, float deltaTime)
+        public override void UpdateVelocity(Vector2 velocity, float deltaTime)
         {
             Velocity += velocity;
             //Scrub X Velocity
@@ -175,14 +170,19 @@ namespace TotallyFair.GameComponents
             if (Math.Abs(Velocity.Y) > DEFAULT_PLAYER.MAX_VELOCITY && Velocity.Y > 0) Velocity.Y = DEFAULT_PLAYER.MAX_VELOCITY;
         }
 
-        public void Chase(Vector2 Target, float deltaTime)
+        public override void Chase(Vector2 Target, float deltaTime)
         {
-            Vector2 Velocity = new( Target.X - Sprite.Position.X , Target.Y - Sprite.Position.Y );
+            Vector2 Velocity = new( Target.X - Position.X , Target.Y - Position.Y );
             float c = (float)Math.Sqrt(Math.Pow(Velocity.X, 2) + Math.Pow(Velocity.Y, 2));
             UpdateVelocity(new Vector2((500 / c) * Velocity.X, (500 / c) * Velocity.Y), deltaTime);
         }
 
-        public void Update()
+        public void ZeroVelocity(float deltaTime)
+        {
+            UpdateVelocity(-Velocity, deltaTime);
+        }
+
+        public override void Update()
         {
             //Update Velocity
             Vector2 UpdateVelocity = new Vector2(0,0);

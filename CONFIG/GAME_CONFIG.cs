@@ -21,11 +21,11 @@ namespace TotallyFair.CONFIG
         {
             STARTING_POSITIONS = new Dictionary<int, Vector2[]>()
         {
-            { 2, new Vector2[2]{ new Vector2(map.Bounds.Width / 2, map.Bounds.Height - 50), new Vector2(map.Bounds.Width / 2, 50) } },
-            { 3, new Vector2[3]{ new Vector2(map.Bounds.Width / 2, map.Bounds.Height - 50), new Vector2(40, map.Bounds.Height / 3), new Vector2(map.Bounds.Width - 40, map.Bounds.Height / 3) } },
-            { 4, new Vector2[4]{ new Vector2(map.Bounds.Width / 2, map.Bounds.Height - 50), new Vector2(40, map.Bounds.Height / 2), new Vector2(map.Bounds.Width / 2, 20), new Vector2(map.Bounds.Width - 40, map.Bounds.Height / 2) } },
-            { 5, new Vector2[5]{ new Vector2(map.Bounds.Width / 2, map.Bounds.Height - 50), new Vector2(40, map.Bounds.Height * 3 / 4), new Vector2(40, map.Bounds.Height / 4), new Vector2(map.Bounds.Width - 80, map.Bounds.Height / 4), new Vector2(map.Bounds.Width - 80, map.Bounds.Height * 3 / 4) } },
-            { 6, new Vector2[6]{ new Vector2(map.Bounds.Width / 2, map.Bounds.Height - 50), new Vector2(40, map.Bounds.Height * 3 / 4), new Vector2(40, map.Bounds.Height / 4), new Vector2(map.Bounds.Width / 2, 20), new Vector2(map.Bounds.Width - 80, map.Bounds.Height / 4), new Vector2(map.Bounds.Width - 80, map.Bounds.Height * 3 / 4) } },
+            { 2, new Vector2[2]{ new Vector2(map.Bounds.Width / 2, map.Bounds.Height / 2), new Vector2(map.Bounds.Width / 2, 70) } },
+            { 3, new Vector2[3]{ new Vector2(map.Bounds.Width / 2, map.Bounds.Height / 2), new Vector2(40, map.Bounds.Height / 3), new Vector2(map.Bounds.Width - 40, map.Bounds.Height / 3) } },
+            { 4, new Vector2[4]{ new Vector2(map.Bounds.Width / 2, map.Bounds.Height / 2), new Vector2(40, map.Bounds.Height / 2), new Vector2(map.Bounds.Width / 2, 70), new Vector2(map.Bounds.Width - 40, map.Bounds.Height / 2) } },
+            { 5, new Vector2[5]{ new Vector2(map.Bounds.Width / 2, map.Bounds.Height / 2), new Vector2(40, map.Bounds.Height * 3 / 4), new Vector2(40, map.Bounds.Height / 4), new Vector2(map.Bounds.Width - 80, map.Bounds.Height / 4), new Vector2(map.Bounds.Width - 80, map.Bounds.Height * 3 / 4) } },
+            { 6, new Vector2[6]{ new Vector2(map.Bounds.Width / 2, map.Bounds.Height / 2), new Vector2(40, map.Bounds.Height * 3 / 4), new Vector2(40, map.Bounds.Height / 4), new Vector2(map.Bounds.Width / 2, 70), new Vector2(map.Bounds.Width - 80, map.Bounds.Height / 4), new Vector2(map.Bounds.Width - 80, map.Bounds.Height * 3 / 4) } },
         };
         }
     }

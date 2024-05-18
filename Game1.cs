@@ -132,14 +132,14 @@ namespace TotallyFair
             PlayerRunningLeftTextures[5] = Content.Load<Texture2D>("Bonk-RunLeft6");
 
             //Initialize Players
-            for (int i = 0; i < 2; i++)
+            for (int i = 0; i < 6; i++)
             {
-                _sceneManager.AddPlayer(i, _settings.STARTING_POSITIONS[2][i], AnimationState.IDLE, PlayerIdleTextures, PlayerIdleTime, true);
-                _sceneManager.Players[i].Object.Sprite.AddAnimation(AnimationState.RUNNINGLEFT, PlayerRunningLeftTextures, PlayerRunningTime, true);
-                _sceneManager.Players[i].Object.Sprite.AddAnimation(AnimationState.RUNNINGRIGHT, PlayerRunningTextures, PlayerRunningTime, true);
+                _sceneManager.AddPlayer(i, _settings.STARTING_POSITIONS[6][i], AnimationState.IDLE, PlayerIdleTextures, PlayerIdleTime, true);
+                _sceneManager.Collidables[i].Sprite.AddAnimation(AnimationState.RUNNINGLEFT, PlayerRunningLeftTextures, PlayerRunningTime, true);
+                _sceneManager.Collidables[i].Sprite.AddAnimation(AnimationState.RUNNINGRIGHT, PlayerRunningTextures, PlayerRunningTime, true);
 
                 //By Default, first player is human
-                if (i == 0) _sceneManager.Players[i].Object.IsCPU = false;
+                if (i == 0) _sceneManager.Collidables[i].IsCPU = false;
             }
 
             GameFont = Content.Load<SpriteFont>("Arial");
@@ -196,7 +196,7 @@ namespace TotallyFair
 
         private void DealCards()
         {
-            for (int i = 0; i < 2; i++) foreach (KeyValuePair<int, GameObject<Player>> p in _sceneManager.Players) p.Value.Object.AddCardToHand(Deck.DealCard(), i);
+            //for (int i = 0; i < 2; i++) foreach (KeyValuePair<int, Player> p in _sceneManager.Collidables) p.Value.AddCardToHand(Deck.DealCard(), i);
         }
 
         /////////////////////////////////////////
@@ -229,22 +229,22 @@ namespace TotallyFair
 
         private void GameAction_MoveRight()
         {
-            _sceneManager.Players[0].Object.UpdateVelocity(new Vector2(2000,0), _settings.TIME_CONSTANT);
+            _sceneManager.Collidables[0].UpdateVelocity(new Vector2(2000,0), _settings.TIME_CONSTANT);
         }
 
         private void GameAction_MoveLeft()
         {
-            _sceneManager.Players[0].Object.UpdateVelocity(new Vector2(-2000, 0), _settings.TIME_CONSTANT);
+            _sceneManager.Collidables[0].UpdateVelocity(new Vector2(-2000, 0), _settings.TIME_CONSTANT);
         }
 
         private void GameAction_MoveUp()
         {
-            _sceneManager.Players[0].Object.UpdateVelocity(new Vector2(0, -2000), _settings.TIME_CONSTANT);
+            _sceneManager.Collidables[0].UpdateVelocity(new Vector2(0, -2000), _settings.TIME_CONSTANT);
         }
 
         private void GameAction_MoveDown()
         {
-            _sceneManager.Players[0].Object.UpdateVelocity(new Vector2(0, 2000), _settings.TIME_CONSTANT);
+            _sceneManager.Collidables[0].UpdateVelocity(new Vector2(0, 2000), _settings.TIME_CONSTANT);
         }
 
         private void GameAction_Attack()

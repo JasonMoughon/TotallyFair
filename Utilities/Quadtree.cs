@@ -1,13 +1,7 @@
-﻿using Microsoft.VisualBasic;
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Drawing;
-using System.Linq;
-using System.Reflection.Emit;
-using System.Reflection.Metadata.Ecma335;
-using System.Text;
+
 
 namespace TotallyFair.Utilities
 {
@@ -56,8 +50,11 @@ namespace TotallyFair.Utilities
              * Place Node into appropriate quad
              */
 
+            //Prevent Infinite Recursion
+            if (NodeList.ContainsKey(id)) return;
+
             //Two or less nodes in Quad or Quad has reached size minimum
-            if (NodeList.Count <= 6 && !HasChildren && !NodeList.ContainsKey(id) || Math.Abs(_topLeft.X - _botRight.X) <= 1000 && Math.Abs(_topLeft.Y - _botRight.Y) <= 1000 && !HasChildren && !NodeList.ContainsKey(id))
+            if (NodeList.Count <= 4 && !HasChildren || Math.Abs(_topLeft.X - _botRight.X) <= 50 && Math.Abs(_topLeft.Y - _botRight.Y) <= 50 && !HasChildren)
                     NodeList.Add(id, pos);
             else
             {
