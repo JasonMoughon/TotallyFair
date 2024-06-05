@@ -2,9 +2,8 @@
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.Diagnostics;
+using System.Timers;
 using TotallyFair.CONFIG;
 using TotallyFair.Graphics;
 
@@ -14,7 +13,6 @@ namespace TotallyFair.GameComponents
     {
         private static PLAYER_CONFIG DEFAULT_PLAYER = new PLAYER_CONFIG();
 
-        private Vector2 _position;
         public bool GameWon = false; //No Default Config for obvious reasons
         public bool IsAttacking = false;
         public Card[] Hand = new Card[DEFAULT_PLAYER.DEFAULT_HAND_SIZE];
@@ -22,19 +20,22 @@ namespace TotallyFair.GameComponents
         public int OffensiveStat = DEFAULT_PLAYER.DEFAULT_OFFENSIVE_STAT;
         public int TotalHealth = DEFAULT_PLAYER.DEFAULT_HEALTH;
         public int HealthCapacity = DEFAULT_PLAYER.DEFAULT_HEALTH;
-        //public GameSprite2D Sprite;
-        public float Mass = DEFAULT_PLAYER.DEFAULT_MASS;
-
         public int HandWeight;
         public Dictionary<string, Card[]> OpponentHands;
+        public bool IsStrikeDisabled = false;
+        private Timer _strikeDisabledTimer = new Timer();
 
         public Player(string playerName, Vector2 position, bool isStatic, bool isRectangular, AnimationState state, Texture2D[] textures, float deltaTime, bool continuous)
         {
             Position = position;
+            Restitution = 0.5f;
+            Mass = DEFAULT_PLAYER.DEFAULT_MASS;
             Name = playerName;
             IsStatic = isStatic;
             CollisionBox = new(position, isRectangular, textures[0].Width / 3);
             Sprite = new GameSprite2D(state, textures, deltaTime, continuous);
+            _strikeDisabledTimer.Elapsed += new ElapsedEventHandler(EnableStrike);
+            _strikeDisabledTimer.Interval = 200;
         }
         public void AddDefensiveStats(int Stat)
         {
@@ -99,6 +100,90 @@ namespace TotallyFair.GameComponents
             for (int i = 0; i < Hand.Length; i++) Hand[i] = null;
         }
 
+        public void InitializeOpponents(int TotalOpponents)
+        {
+            for (int i = 0; i < TotalOpponents; i++) OpponentHands.Add($"Opponent{i}", new Card[TotalOpponents]);
+        }
+
+        public void ForgetOpponentHand()
+        {
+            if (OpponentHands == null) return;
+            foreach (KeyValuePair<string, Card[]> OpponentHand in OpponentHands)
+            {
+                for (int i = 0; i < OpponentHand.Value.Length; i++) if (ChanceEvent(0.5, 1.0)) OpponentHand.Value[i] = null;
+            }
+        }
+
+        public bool ChanceEvent(double Threshold, double Fullscale)
+        {
+            Random RandomChance = new Random();
+            return RandomChance.NextDouble() * Fullscale > Threshold;
+        }
+
+        public void UpdateVelocity(Vector2 velocity, float deltaTime)
+        {
+            Velocity += velocity;
+            //Scrub X Velocity
+            if (Math.Abs(Velocity.X) > DEFAULT_PLAYER.MAX_VELOCITY && Velocity.X < 0) Velocity.X = -DEFAULT_PLAYER.MAX_VELOCITY;
+            if (Math.Abs(Velocity.X) > DEFAULT_PLAYER.MAX_VELOCITY && Velocity.X > 0) Velocity.X = DEFAULT_PLAYER.MAX_VELOCITY;
+            //Scrub Y Velocity
+            if (Math.Abs(Velocity.Y) > DEFAULT_PLAYER.MAX_VELOCITY && Velocity.Y < 0) Velocity.Y = -DEFAULT_PLAYER.MAX_VELOCITY;
+            if (Math.Abs(Velocity.Y) > DEFAULT_PLAYER.MAX_VELOCITY && Velocity.Y > 0) Velocity.Y = DEFAULT_PLAYER.MAX_VELOCITY;
+        }
+
+        public void Chase(Vector2 Target)
+        {
+            Vector2 Velocity = new( Target.X - Position.X , Target.Y - Position.Y );
+            float c = (float)Math.Sqrt(Math.Pow(Velocity.X, 2) + Math.Pow(Velocity.Y, 2));
+            Force = new Vector2((2000 / c) * Velocity.X, (2000 / c) * Velocity.Y);
+        }
+
+        public override void Update(float deltaTime)
+        {
+            //Cannot do anything if no textures
+            if (Sprite.AnimationLibrary.Count == 0) return;
+            //Start animation if not running
+            if (!Sprite.AnimationLibrary[Sprite.CurrentState].Running) Sprite.Start();
+
+
+            //Update Velocity
+            Vector2 acceleration = Force / Mass;
+            Velocity += acceleration * deltaTime;
+
+            Force.X = 0f;
+            Force.Y = 0f;
+
+            if (Math.Abs(Velocity.X) >= 5f) Velocity.X += -Velocity.X * deltaTime;
+            else Velocity.X = 0;
+            if (Math.Abs(Velocity.Y) >= 5f) Velocity.Y += -Velocity.Y * deltaTime;
+            else Velocity.Y = 0;
+
+            //Update AnimationState
+            switch (Sprite.CurrentState)
+            {
+                case AnimationState.IDLE:
+                    if (Velocity.X < 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGLEFT);
+                    if (Velocity.X > 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGRIGHT);
+                    if (Velocity.X == 0 && Velocity.Y < 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGLEFT);
+                    if (Velocity.X == 0 && Velocity.Y > 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGRIGHT);
+                    break;
+                case AnimationState.RUNNINGLEFT:
+                    if (Velocity.X == 0 && Velocity.Y == 0) Sprite.ChangeAnimationState(AnimationState.IDLE);
+                    if (Velocity.X > 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGRIGHT);
+                    break;
+                case AnimationState.RUNNINGRIGHT:
+                    if (Velocity.X == 0 && Velocity.Y == 0) Sprite.ChangeAnimationState(AnimationState.IDLE);
+                    if (Velocity.X < 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGLEFT);
+                    break;
+
+            }
+        }
+
+        private void EnableStrike(object sender, ElapsedEventArgs args)
+        {
+            IsStrikeDisabled = false;
+        }
+
         private void CalculateHandWeight(Card[] MyHand)
         {
             HandWeight = 0;
@@ -134,83 +219,5 @@ namespace TotallyFair.GameComponents
             return ResultArr;
         }
 
-        public void InitializeOpponents(int TotalOpponents)
-        {
-            for (int i = 0; i < TotalOpponents; i++) OpponentHands.Add($"Opponent{i}", new Card[TotalOpponents]);
-        }
-
-        public void ForgetOpponentHand()
-        {
-            if (OpponentHands == null) return;
-            foreach (KeyValuePair<string, Card[]> OpponentHand in OpponentHands)
-            {
-                for (int i = 0; i < OpponentHand.Value.Length; i++) if (ChanceEvent(0.5, 1.0)) OpponentHand.Value[i] = null;
-            }
-        }
-
-        public bool ChanceEvent(double Threshold, double Fullscale)
-        {
-            Random RandomChance = new Random();
-            return RandomChance.NextDouble() * Fullscale > Threshold;
-        }
-
-        public void AddExternalVelocity(Vector2 velocity, float mass, float deltaTime)
-        {
-            Velocity = (Mass * Velocity / (Mass + mass)) * deltaTime;
-        }
-
-        public override void UpdateVelocity(Vector2 velocity, float deltaTime)
-        {
-            Velocity += velocity;
-            //Scrub X Velocity
-            if (Math.Abs(Velocity.X) > DEFAULT_PLAYER.MAX_VELOCITY && Velocity.X < 0) Velocity.X = -DEFAULT_PLAYER.MAX_VELOCITY;
-            if (Math.Abs(Velocity.X) > DEFAULT_PLAYER.MAX_VELOCITY && Velocity.X > 0) Velocity.X = DEFAULT_PLAYER.MAX_VELOCITY;
-            //Scrub Y Velocity
-            if (Math.Abs(Velocity.Y) > DEFAULT_PLAYER.MAX_VELOCITY && Velocity.Y < 0) Velocity.Y = -DEFAULT_PLAYER.MAX_VELOCITY;
-            if (Math.Abs(Velocity.Y) > DEFAULT_PLAYER.MAX_VELOCITY && Velocity.Y > 0) Velocity.Y = DEFAULT_PLAYER.MAX_VELOCITY;
-        }
-
-        public override void Chase(Vector2 Target, float deltaTime)
-        {
-            Vector2 Velocity = new( Target.X - Position.X , Target.Y - Position.Y );
-            float c = (float)Math.Sqrt(Math.Pow(Velocity.X, 2) + Math.Pow(Velocity.Y, 2));
-            UpdateVelocity(new Vector2((500 / c) * Velocity.X, (500 / c) * Velocity.Y), deltaTime);
-        }
-
-        public void ZeroVelocity(float deltaTime)
-        {
-            UpdateVelocity(-Velocity, deltaTime);
-        }
-
-        public override void Update()
-        {
-            //Update Velocity
-            Vector2 UpdateVelocity = new Vector2(0,0);
-            if (Math.Abs(Velocity.X) >= 10) UpdateVelocity.X = -Velocity.X * (float)0.15;
-            else UpdateVelocity.X = -Velocity.X;
-            if (Math.Abs(Velocity.Y) >= 10) UpdateVelocity.Y = -Velocity.Y * (float)0.15;
-            else UpdateVelocity.Y = -Velocity.Y;
-            this.UpdateVelocity(UpdateVelocity, (float)0.001);
-
-            //Update AnimationState
-            switch (Sprite.CurrentState)
-            {
-                case AnimationState.IDLE:
-                    if (Velocity.X < 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGLEFT);
-                    if (Velocity.X > 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGRIGHT);
-                    if (Velocity.X == 0 && Velocity.Y < 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGLEFT);
-                    if (Velocity.X == 0 && Velocity.Y > 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGRIGHT);
-                    break;
-                case AnimationState.RUNNINGLEFT:
-                    if (Velocity.X == 0 && Velocity.Y == 0) Sprite.ChangeAnimationState(AnimationState.IDLE);
-                    if (Velocity.X > 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGRIGHT);
-                    break;
-                case AnimationState.RUNNINGRIGHT:
-                    if (Velocity.X == 0 && Velocity.Y == 0) Sprite.ChangeAnimationState(AnimationState.IDLE);
-                    if (Velocity.X < 0) Sprite.ChangeAnimationState(AnimationState.RUNNINGLEFT);
-                    break;
-
-            }
-        }
     }
 }

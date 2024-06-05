@@ -5,9 +5,11 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
+using System.Net.Security;
 using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using TotallyFair.CONFIG;
 using TotallyFair.GameComponents;
 using TotallyFair.Graphics;
@@ -15,6 +17,7 @@ using TotallyFair.Utilities;
 
 namespace TotallyFair.Managers
 {
+
     /// <summary>
     /// Scene Manager Object:
     /// Responsible for managing all GameObjects (Players, Consumables, Computers, etc.).
@@ -22,89 +25,227 @@ namespace TotallyFair.Managers
     /// Keep objects positioned where they are supposed to be.
     /// 
     /// Integer ID Rules:
-    /// Players:0-10
-    /// Consumables:100-1000
-    /// Projectiles: >1000
+    /// Players:0-99
+    /// Consumables:100-999
+    /// Projectiles: 1000-9999
+    /// Environmentals: >=10000
     /// </summary>
+
     public class SceneManager
     {
         public Map SceneMap;
-        public Dictionary<int, Collidable> Collidables = new Dictionary<int, Collidable>();
-        //public Dictionary<int, GameObject<Player>> Players = new Dictionary<int, GameObject<Player>>();
-        //public Dictionary<int, GameObject<Consumable>> Consumables = new Dictionary<int, GameObject<Consumable>>();
-        private Quad _collisionManager;
+
+        public Dictionary<int, Player> Players = new();
+        public Dictionary<int, Consumable> Consumables = new();
+        public Dictionary<int, Projectile> Projectiles = new();
+        public Dictionary<int, Environmental> Environmentals = new(); //Static Environmental Objects
+        private Quad<Type> _collisionManager;
+        private Camera _camera;
         private GAME_CONFIG _settings;
 
-        public SceneManager(Texture2D texture)
+        public SceneManager(Texture2D texture, Viewport viewport)
         {
-            SceneMap = new Map(texture);
+            _camera = new(viewport);
+            SceneMap = new(texture);
             _settings = new(SceneMap);
-            _collisionManager = new Quad(new Vector2(0,0), new Vector2(texture.Width, texture.Height));
+            _collisionManager = new(new Vector2(0, 0), new Vector2(texture.Width, texture.Height));
         }
         public void AddPlayer(int id, Vector2 position, AnimationState animationState, Texture2D[] textures, float deltaTime, bool continuous)
         {
-            Player p = new($"Player{id}", position, false, false, animationState, textures, deltaTime, continuous);
-            //GameObject<Player> data = new();
-            if (!Collidables.ContainsKey(id)) Collidables.Add(id, p);
-            _collisionManager.Insert(id, position);
-        }
+            //Key already exists
+            if (Players.ContainsKey(id)) return;
 
-        /*public void AddConsumable(int id, Vector2 position, AnimationState animationState, Texture2D[] textures, float deltaTime, bool continuous)
-        {
-            Collidable c = new(position, $"Player{id}", false, false, textures[0].Width / 3, animationState, textures, deltaTime, continuous);
-            //GameObject<Consumable> data = new();
-            data.CollisionBox = new(position, false, texture.Width / 3);
-            Consumables.Add(id, data);
-            _collisionManager.Insert(id, position);
-        }*/
+            Player p = new($"Player{id}", position, false, false, animationState, textures, deltaTime, continuous);
+            Players.Add(id, p);
+            InsertIntoQuad<Player>(id, p);
+        }
 
         public void RemovePlayer(int id, Vector2 position)
         {
-            if (!Collidables.ContainsKey(id)) return;
-            Collidables.Remove(id);
+            if (!Players.ContainsKey(id)) return;
+
+            Players.Remove(id);
             _collisionManager.Delete(id, position);
         }
 
-        /*public void RemoveConsumable(int id)
+        public void AddProjectile(int id, Vector2 position, AnimationState animationState, Texture2D[] textures, float deltaTime, bool continuous)
+        {
+            //Key already exists
+            if (Projectiles.ContainsKey(id)) return;
+
+            Projectile p = new(position, $"Projectile{id}", true, false, false, animationState, textures, deltaTime, continuous);
+            Projectiles.Add(id, p);
+            InsertIntoQuad<Projectile>(id, p);
+        }
+
+        public void RemoveProjectile(int id, Vector2 position)
+        {
+            if (!Projectiles.ContainsKey(id)) return;
+
+            DeleteFromQuad(id, Projectiles[id]);
+            Projectiles.Remove(id);
+        }
+
+        public void AddConsumable(int id, Vector2 position, AnimationState animationState, Texture2D[] textures, float deltaTime, bool continuous)
+        {
+            //Key already exists
+            if (!Consumables.ContainsKey(id)) return;
+
+            Consumable c = new(position, $"Projectile{id}", true, false, false, animationState, textures, deltaTime, continuous);
+            Consumables.Add(id, c);
+            InsertIntoQuad<Consumable>(id, c);
+        }
+
+        public void RemoveConsumable(int id)
         {
             if (!Consumables.ContainsKey(id)) return;
+
+            DeleteFromQuad(id, Consumables[id]);
             Consumables.Remove(id);
-        }*/
+        }
 
-        public void Update()
+        public void AddEnvironment(int id, Vector2 position, AnimationState animationState, Texture2D[] textures, float deltaTime, bool continuous)
         {
-            if (Collidables.Count == 0) return;
-            foreach (KeyValuePair<int,Collidable> c in Collidables)
+            //Key already exists
+            if (Environmentals.ContainsKey(id)) return;
+
+            Environmental c = new(position, $"Environment{id}", true, true, true, animationState, textures, deltaTime, continuous);
+            Environmentals.Add(id, c);
+            InsertIntoQuad<Environmental>(id, c);
+        }
+
+        public void RemoveEnvironment(int id)
+        {
+            if (!Environmentals.ContainsKey(id)) return;
+
+            DeleteFromQuad(id, Environmentals[id]);
+            Environmentals.Remove(id);
+        }
+
+        public void Update(Viewport viewport)
+        {
+            _camera.UpdateCamera(viewport);
+
+            if (Players.Count > 0)
             {
-                Dictionary<int, Vector2> collidables = _collisionManager.Search(c.Key, c.Value.Position);
-
-                //Only update position if player center was found and deleted from quad
-                if (_collisionManager.Delete(c.Key, c.Value.CollisionBox.Center))
+                foreach (KeyValuePair<int, Player> c in Players)
                 {
-                    //Try delete all points of collision box
-                    _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetTopRight());
-                    _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetTopLeft());
-                    _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetBottomLeft());
-                    _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetBottomRight());
+                    Dictionary<int, Type> collidables = _collisionManager.Search(c.Key, c.Value.Position);
+                    Debug.WriteLine(_collisionManager.Delete(c.Key, c.Value.CollisionBox.Center));
 
-                    //Update Position
-                    UpdatePosition(c.Key, _settings.TIME_CONSTANT, collidables);
-                    Collidables[c.Key].Update();
+                    //Only update position if player center was found and deleted from quad
+                    if (_collisionManager.Delete(c.Key, c.Value.CollisionBox.Center))
+                    {
+                        //Try delete all points of collision box
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetTopRight());
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetTopLeft());
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetBottomLeft());
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetBottomRight());
 
-                    //Recenter CollisionBox on position
-                    c.Value.CollisionBox.Center = Collidables[c.Key].Position;
+                        //Update Position
+                        UpdatePosition<Player>(c.Key, _settings.TIME_CONSTANT, collidables);
+                        Players[c.Key].Update(_settings.TIME_CONSTANT);
 
-                    //Finally, insert all points of collision box
-                    //Insert Center First
-                    _collisionManager.Insert(c.Key, c.Value.CollisionBox.Center);
-                    _collisionManager.Insert(c.Key, c.Value.CollisionBox.GetTopRight());
-                    _collisionManager.Insert(c.Key, c.Value.CollisionBox.GetTopLeft());
-                    _collisionManager.Insert(c.Key, c.Value.CollisionBox.GetBottomLeft());
-                    _collisionManager.Insert(c.Key, c.Value.CollisionBox.GetBottomRight());
+                        //Recenter CollisionBox on position
+                        c.Value.CollisionBox.Center = Players[c.Key].Position;
+
+                        //Finally, insert all points of collision box
+                        //Insert Center First
+                        InsertIntoQuad<Player>(c.Key, c.Value);
+                    }
                 }
             }
+
+            if (Consumables.Count > 0)
+            {
+                foreach (KeyValuePair<int, Consumable> c in Consumables)
+                {
+                    Dictionary<int, Type> collidables = _collisionManager.Search(c.Key, c.Value.Position);
+
+                    //Only update position if player center was found and deleted from quad
+                    if (_collisionManager.Delete(c.Key, c.Value.CollisionBox.Center))
+                    {
+                        //Try delete all points of collision box
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetTopRight());
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetTopLeft());
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetBottomLeft());
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetBottomRight());
+
+                        //Update Position
+                        UpdatePosition<Consumable>(c.Key, _settings.TIME_CONSTANT, collidables);
+                        Consumables[c.Key].Update(_settings.TIME_CONSTANT);
+
+                        //Recenter CollisionBox on position
+                        c.Value.CollisionBox.Center = Consumables[c.Key].Position;
+
+                        //Finally, insert all points of collision box
+                        //Insert Center First
+                        InsertIntoQuad<Consumable>(c.Key, c.Value);
+                    }
+                }
+            }
+
+            if (Projectiles.Count > 0)
+            {
+                foreach (KeyValuePair<int, Projectile> c in Projectiles)
+                {
+                    Dictionary<int, Type> collidables = _collisionManager.Search(c.Key, c.Value.Position);
+
+                    //Only update position if player center was found and deleted from quad
+                    if (_collisionManager.Delete(c.Key, c.Value.CollisionBox.Center))
+                    {
+                        //Try delete all points of collision box
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetTopRight());
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetTopLeft());
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetBottomLeft());
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetBottomRight());
+
+                        //Update Position
+                        UpdatePosition<Projectile>(c.Key, _settings.TIME_CONSTANT, collidables);
+                        Projectiles[c.Key].Update(_settings.TIME_CONSTANT);
+
+                        //Recenter CollisionBox on position
+                        c.Value.CollisionBox.Center = Projectiles[c.Key].Position;
+
+                        //Finally, insert all points of collision box
+                        //Insert Center First
+                        InsertIntoQuad<Projectile>(c.Key, c.Value);
+                    }
+                }
+            }
+
+            if (Environmentals.Count > 0)
+            {
+                foreach (KeyValuePair<int, Environmental> c in Environmentals)
+                {
+                    Dictionary<int, Type> collidables = _collisionManager.Search(c.Key, c.Value.Position);
+
+                    //Only update position if player center was found and deleted from quad
+                    if (_collisionManager.Delete(c.Key, c.Value.CollisionBox.Center))
+                    {
+                        //Try delete all points of collision box
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetTopRight());
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetTopLeft());
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetBottomLeft());
+                        _collisionManager.Delete(c.Key, c.Value.CollisionBox.GetBottomRight());
+
+                        //Update Position
+                        UpdatePosition<Environmental>(c.Key, _settings.TIME_CONSTANT, collidables);
+                        Environmentals[c.Key].Update(_settings.TIME_CONSTANT);
+
+                        //Recenter CollisionBox on position
+                        c.Value.CollisionBox.Center = Environmentals[c.Key].Position;
+
+                        //Finally, insert all points of collision box
+                        //Insert Center First
+                        InsertIntoQuad<Environmental>(c.Key, c.Value);
+                    }
+                }
+            }
+
             //Clean up Quadtree
             _collisionManager.CleanUp();
+            _camera.MoveCamera(Players[0].Position);
         }
 
         public void Draw(SpriteBatch spriteBatch, GraphicsDeviceManager graphics)
@@ -112,7 +253,7 @@ namespace TotallyFair.Managers
             //Draw all Players
             SceneMap.Draw(spriteBatch, graphics);
 
-            foreach (KeyValuePair<int, Collidable> c in Collidables)
+            foreach (KeyValuePair<int, Player> c in Players)
             {
                 //spriteBatch.DrawString(GameFont, $"{Players[i].Hand[0].FaceValue}", Vector_PlayerHand[i], Color.White);
                 //spriteBatch.DrawString(GameFont, $"{Players[i].Hand[1].FaceValue}", new Vector2(Vector_PlayerHand[i].X, Vector_PlayerHand[i].Y + 25), Color.White);
@@ -120,70 +261,251 @@ namespace TotallyFair.Managers
             }
         }
 
-        private void UpdatePosition(int key, float deltaTime, Dictionary<int, Vector2> collidables)
+        private void InsertIntoQuad<T>(int id, Collidable c)
         {
-            Vector2 newPosition = new(Collidables[key].Position.X, Collidables[key].Position.Y);
-            if (key <= 10)
+            _collisionManager.Insert(id, c.CollisionBox.Center, typeof(T));
+            _collisionManager.Insert(id, c.CollisionBox.GetTopRight(), typeof(T));
+            _collisionManager.Insert(id, c.CollisionBox.GetTopLeft(), typeof(T));
+            _collisionManager.Insert(id, c.CollisionBox.GetBottomRight(), typeof(T));
+            _collisionManager.Insert(id, c.CollisionBox.GetBottomLeft(), typeof(T));
+        }
+
+        private void DeleteFromQuad(int id, Collidable c)
+        {
+            _collisionManager.Delete(id, c.CollisionBox.Center);
+            _collisionManager.Delete(id, c.CollisionBox.GetTopRight());
+            _collisionManager.Delete(id, c.CollisionBox.GetTopLeft());
+            _collisionManager.Delete(id, c.CollisionBox.GetBottomLeft());
+            _collisionManager.Delete(id, c.CollisionBox.GetBottomRight());
+        }
+
+        private void ClampPositionInBounds<T>(int key, float deltaTime)
+        {
+            Vector2 newPosition = new();
+            //Clamp Players to map bounds
+            if (typeof(T) == typeof(Player))
             {
-                if (Collidables[key].IsCPU) Collidables[key].Chase(Collidables[key-1].Position, _settings.TIME_CONSTANT);
-                
+                //Protect against null position
+                if (!Players.ContainsKey(key)) return;
+
+                (newPosition.X, newPosition.Y) = (Players[key].Position.X, Players[key].Position.Y);
+
                 //Calculate new position
-                newPosition.X += Collidables[key].Velocity.X * (float)deltaTime;
-                newPosition.Y += Collidables[key].Velocity.Y * (float)deltaTime;
+                newPosition.X += Players[key].Velocity.X * (float)deltaTime;
+                newPosition.Y += Players[key].Velocity.Y * (float)deltaTime;
 
                 //Clamp to bounds of window
-                if (newPosition.X + Collidables[key].CollisionBox.CollisionRadius > SceneMap.Bounds.Width ||
-                    newPosition.X - Collidables[key].CollisionBox.CollisionRadius < 0 ||
-                    newPosition.Y + Collidables[key].CollisionBox.CollisionRadius > SceneMap.Bounds.Height ||
-                    newPosition.Y - Collidables[key].CollisionBox.CollisionRadius < 0)
-                        return;
+                if (newPosition.X + Players[key].CollisionBox.CollisionRadius > SceneMap.Bounds.Width ||
+                    newPosition.X - Players[key].CollisionBox.CollisionRadius < 0 ||
+                    newPosition.Y + Players[key].CollisionBox.CollisionRadius > SceneMap.Bounds.Height ||
+                    newPosition.Y - Players[key].CollisionBox.CollisionRadius < 0)
+                    return;
+                
+                Players[key].Position = newPosition;
+            }
 
-                //Exit condition
-                Collidables[key].Position = newPosition;
+            //Clamp Consumables to map bounds
+            if (typeof(T).Equals(typeof(Consumable)))
+            {
+                //Protect against null position
+                if (!Consumables.ContainsKey(key)) return;
 
-                //Check for collisions if gameObjects in area
-                if (collidables != null)
-                {
-                    foreach (KeyValuePair<int, Vector2> c in collidables)
-                        if (c.Key != key && IsColliding(Collidables[key], Collidables[c.Key]))
-                        {
-                            return;
-                            //Players[key].Object
-                            //Players[collidable.Key].Object
-                            /*if (c.Value.IsStatic)
-                            {
-                                bodyB.Move(normal * depth);
-                            }
-                            else if (bodyB.IsStatic)
-                            {
-                                bodyA.Move(-normal * depth);
-                            }
-                            else
-                            {
-                                bodyA.Move(-normal * depth / 2f);
-                                bodyB.Move(normal * depth / 2f);
-                            }
+                (newPosition.X, newPosition.Y) = (Consumables[key].Position.X, Consumables[key].Position.Y);
 
-                            this.ResolveCollision(bodyA, bodyB, normal, depth);*/
-                        }
-                }
-                //Set new GameObject with new position
-                Collidables[key].Position = newPosition;
+                //Calculate new position
+                newPosition.X += Consumables[key].Velocity.X * (float)deltaTime;
+                newPosition.Y += Consumables[key].Velocity.Y * (float)deltaTime;
+
+                //Clamp to bounds of window
+                if (newPosition.X + Consumables[key].CollisionBox.CollisionRadius > SceneMap.Bounds.Width ||
+                    newPosition.X - Consumables[key].CollisionBox.CollisionRadius < 0 ||
+                    newPosition.Y + Consumables[key].CollisionBox.CollisionRadius > SceneMap.Bounds.Height ||
+                    newPosition.Y - Consumables[key].CollisionBox.CollisionRadius < 0)
+                    return;
+
+                Consumables[key].Position = newPosition;
+            }
+
+            //Clamp Projectiles to map bounds
+            if (typeof(T).Equals(typeof(Projectile)))
+            {
+                //Protect against null position
+                if (!Projectiles.ContainsKey(key)) return;
+
+                (newPosition.X, newPosition.Y) = (Projectiles[key].Position.X, Projectiles[key].Position.Y);
+
+                //Calculate new position
+                newPosition.X += Projectiles[key].Velocity.X * (float)deltaTime;
+                newPosition.Y += Projectiles[key].Velocity.Y * (float)deltaTime;
+
+                //Clamp to bounds of window
+                if (newPosition.X + Projectiles[key].CollisionBox.CollisionRadius > SceneMap.Bounds.Width ||
+                    newPosition.X - Projectiles[key].CollisionBox.CollisionRadius < 0 ||
+                    newPosition.Y + Projectiles[key].CollisionBox.CollisionRadius > SceneMap.Bounds.Height ||
+                    newPosition.Y - Projectiles[key].CollisionBox.CollisionRadius < 0)
+                    return;
+
+                Projectiles[key].Position = newPosition;
             }
         }
 
-        private bool IsColliding(Collidable bodyA, Collidable bodyB)
+        private void UpdatePosition<T>(int key, float deltaTime, Dictionary<int, Type> collidables)
         {
-            if (!bodyA.CollisionBox.IsRectangular && !bodyB.CollisionBox.IsRectangular)
-                return (Math.Sqrt(Math.Pow(bodyB.Position.X - bodyA.Position.X, 2) + Math.Pow(bodyB.Position.Y - bodyA.Position.Y, 2)) < bodyA.CollisionBox.CollisionRadius + bodyB.CollisionBox.CollisionRadius);
-            else
-                //Treat both objects like rectangles
-                return (bodyA.CollisionBox.CollisionRadius + bodyB.CollisionBox.CollisionRadius >= Math.Abs(bodyB.Position.X - bodyA.Position.X) && bodyA.CollisionBox.CollisionRadius + bodyB.CollisionBox.CollisionRadius >= Math.Abs(bodyA.Position.Y - bodyB.Position.Y));
+            //Check for collisions if gameObjects in area
+            if (collidables != null)
+            {
+                foreach (KeyValuePair<int, Type> c in collidables)
+                {
+                    Vector2 normal;
+                    float depth;
+
+                    if (typeof(T) == typeof(Player))
+                    {
+                        //Ensure object exists
+                        if (!Players.ContainsKey(key)) return;
+
+                        if (c.Value == typeof(Player))
+                        {
+                            //Ensure object exists
+                            if (!Players.ContainsKey(c.Key)) return;
+
+                            if (c.Key != key && IsColliding(Players[key], Players[c.Key], out normal, out depth))
+                            {
+                                if (Players[key].IsStatic)
+                                {
+                                    Players[c.Key].Position += normal * depth;
+                                }
+                                else if (Players[c.Key].IsStatic)
+                                {
+                                    Players[key].Position += (-normal * depth);
+                                }
+                                ResolveCollision(Players[key], Players[c.Key], normal);
+                            }
+                        }
+
+                        if (c.Value == typeof(Consumable))
+                        {
+                            //Ensure object exists
+                            if (!Consumables.ContainsKey(c.Key)) return;
+
+                            if (c.Key != key && IsColliding(Players[key], Consumables[c.Key], out normal, out depth))
+                            {
+                                if (Players[key].IsStatic)
+                                {
+                                    Consumables[c.Key].Position += normal * depth;
+                                }
+                                else if (Consumables[c.Key].IsStatic)
+                                {
+                                    Players[key].Position += (-normal * depth);
+                                }
+                                ResolveCollision(Players[key], Consumables[c.Key], normal);
+                            }
+                        }
+
+                        if (c.Value == typeof(Projectile))
+                        {
+                            //Ensure object exists
+                            if (!Projectiles.ContainsKey(c.Key)) return;
+
+                            if (c.Key != key && IsColliding(Players[key], Projectiles[c.Key], out normal, out depth))
+                            {
+                                if (Players[key].IsStatic)
+                                {
+                                    Projectiles[c.Key].Position += normal * depth;
+                                }
+                                else if (Projectiles[c.Key].IsStatic)
+                                {
+                                    Players[key].Position += (-normal * depth);
+                                }
+                                ResolveCollision(Players[key], Projectiles[c.Key], normal);
+                            }
+                        }
+
+                        if (c.Value == typeof(Collidable))
+                        {
+                            //Ensure object exists
+                            if (!Environmentals.ContainsKey(c.Key)) return;
+
+                            if (c.Key != key && IsColliding(Players[key], Projectiles[c.Key], out normal, out depth))
+                            {
+                                if (Players[key].IsStatic)
+                                {
+                                    Projectiles[c.Key].Position += normal * depth;
+                                }
+                                else if (Projectiles[c.Key].IsStatic)
+                                {
+                                    Players[key].Position += (-normal * depth);
+                                }
+                                ResolveCollision(Players[key], Projectiles[c.Key], normal);
+                            }
+                        }
+                        //Set new GameObject with new position
+                        ClampPositionInBounds<Player>(key, deltaTime);
+                    }
+
+                    if (typeof(T) == typeof(Projectile))
+                    {
+                        if (c.Value == typeof(Player))
+                        {
+                            //Ensure object exists
+                            if (!Players.ContainsKey(key)) return;
+
+                            if (c.Key != key && IsColliding(Consumables[key], Players[c.Key], out normal, out depth))
+                            {
+                                if (Consumables[key].IsStatic)
+                                {
+                                    Players[c.Key].Position += normal * depth;
+                                }
+                                else if (Players[c.Key].IsStatic)
+                                {
+                                    Consumables[key].Position += (-normal * depth);
+                                }
+                                ResolveCollision(Consumables[key], Players[c.Key], normal);
+                            }
+                        }
+                        //Set new GameObject with new position
+                        ClampPositionInBounds<Projectile>(key, deltaTime);
+                    }
+                }
+            }
         }
 
-        private double GetAngle(Vector2 a, Vector2 b)
+        private bool IsColliding(Collidable bodyA, Collidable bodyB, out Vector2 normal, out float depth)
         {
-            return Math.Atan2(b.Y - a.Y, b.X - a.X);
+            normal.X = (float)Math.Cos(FlatMath.GetAngle(bodyA.Position, bodyB.Position));
+            normal.Y = (float)Math.Sin(FlatMath.GetAngle(bodyA.Position, bodyB.Position));
+            if (!bodyA.CollisionBox.IsRectangular && !bodyB.CollisionBox.IsRectangular)
+            {
+                depth = (float)(Math.Sqrt(Math.Pow(bodyB.Position.X - bodyA.Position.X, 2) + Math.Pow(bodyB.Position.Y - bodyA.Position.Y, 2)) - bodyA.CollisionBox.CollisionRadius + bodyB.CollisionBox.CollisionRadius);
+                return (Math.Sqrt(Math.Pow(bodyB.Position.X - bodyA.Position.X, 2) + Math.Pow(bodyB.Position.Y - bodyA.Position.Y, 2)) < bodyA.CollisionBox.CollisionRadius + bodyB.CollisionBox.CollisionRadius);
+            }
+            else
+            {
+                //Treat both objects like rectangles
+                depth = Math.Abs(bodyB.Position.X - bodyA.Position.X) - (bodyA.CollisionBox.CollisionRadius + bodyB.CollisionBox.CollisionRadius);
+                if (Math.Abs(bodyA.Position.Y - bodyB.Position.Y) - (bodyA.CollisionBox.CollisionRadius + bodyB.CollisionBox.CollisionRadius) < depth) depth = Math.Abs(bodyA.Position.Y - bodyB.Position.Y) - (bodyA.CollisionBox.CollisionRadius + bodyB.CollisionBox.CollisionRadius);
+                return (bodyA.CollisionBox.CollisionRadius + bodyB.CollisionBox.CollisionRadius >= Math.Abs(bodyB.Position.X - bodyA.Position.X) && bodyA.CollisionBox.CollisionRadius + bodyB.CollisionBox.CollisionRadius >= Math.Abs(bodyA.Position.Y - bodyB.Position.Y));
+            }
+        }
+
+        private void ResolveCollision(Collidable bodyA, Collidable bodyB, Vector2 normal)
+        {
+            Vector2 relativeVelocity = bodyB.Velocity - bodyA.Velocity;
+
+            if (FlatMath.Dot(relativeVelocity, normal) > 0f)
+            {
+                return;
+            }
+
+            float e = MathF.Min(bodyA.Restitution, bodyB.Restitution);
+
+            float j = -(1f + e) * FlatMath.Dot(relativeVelocity, normal);
+            j /= (1 / bodyA.Mass) + (1 / bodyB.Mass);
+
+            Vector2 impulse = j * normal;
+
+            bodyA.Velocity -= impulse * (1 / bodyA.Mass);
+            bodyB.Velocity += impulse * (1 / bodyB.Mass);
         }
     }
 }

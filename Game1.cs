@@ -11,6 +11,7 @@ using TotallyFair.CONFIG;
 using TotallyFair.GameComponents;
 using TotallyFair.Graphics;
 using TotallyFair.Managers;
+using TotallyFair.Utilities;
 
 namespace TotallyFair
 {
@@ -29,7 +30,6 @@ namespace TotallyFair
         /**************************************/
         /* Initialize ALL TEXTURES AND LABELS */
         /**************************************/
-        private Map _map;
         private SpriteFont GameFont; 
 
         /*******************************/
@@ -41,6 +41,8 @@ namespace TotallyFair
         private static Player[] Players = new Player[6];
         private Vector2[] Vector_PlayerHand = new Vector2[6];
         private SceneManager _sceneManager;
+        private Map _map;
+        private Texture2D[] _bullets = new Texture2D[1]; 
 
         /************/
         /* SETTINGS */
@@ -72,8 +74,9 @@ namespace TotallyFair
             _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height;
             _graphics.ApplyChanges();
 
-            //_map = new Map(Content.Load<Texture2D>("Map"));
-            _sceneManager = new(Content.Load<Texture2D>("Map"));
+            _map = new(Content.Load<Texture2D>("Map"));
+            GraphicsDevice.Viewport = new(0,0, _map.Bounds.Width, _map.Bounds.Height);
+            _sceneManager = new(Content.Load<Texture2D>("Map"), GraphicsDevice.Viewport);
 
             _settings = new GAME_CONFIG(_sceneManager.SceneMap);
 
@@ -108,6 +111,8 @@ namespace TotallyFair
         {
             _spriteBatch = new SpriteBatch(GraphicsDevice);
 
+            _bullets[0] = Content.Load<Texture2D>("Circle");
+
             // TODO: use this.Content to load your game content here
             Texture2D[] PlayerRunningTextures = new Texture2D[6];
             Texture2D[] PlayerRunningLeftTextures = new Texture2D[6];
@@ -135,11 +140,11 @@ namespace TotallyFair
             for (int i = 0; i < 6; i++)
             {
                 _sceneManager.AddPlayer(i, _settings.STARTING_POSITIONS[6][i], AnimationState.IDLE, PlayerIdleTextures, PlayerIdleTime, true);
-                _sceneManager.Collidables[i].Sprite.AddAnimation(AnimationState.RUNNINGLEFT, PlayerRunningLeftTextures, PlayerRunningTime, true);
-                _sceneManager.Collidables[i].Sprite.AddAnimation(AnimationState.RUNNINGRIGHT, PlayerRunningTextures, PlayerRunningTime, true);
+                _sceneManager.Players[i].Sprite.AddAnimation(AnimationState.RUNNINGLEFT, PlayerRunningLeftTextures, PlayerRunningTime, true);
+                _sceneManager.Players[i].Sprite.AddAnimation(AnimationState.RUNNINGRIGHT, PlayerRunningTextures, PlayerRunningTime, true);
 
                 //By Default, first player is human
-                if (i == 0) _sceneManager.Collidables[i].IsCPU = false;
+                if (i == 0) _sceneManager.Players[i].IsCPU = false;
             }
 
             GameFont = Content.Load<SpriteFont>("Arial");
@@ -154,7 +159,7 @@ namespace TotallyFair
             //Listen for known events
             InputListener.Update();
 
-            if (!_paused) _sceneManager.Update();
+            if (!_paused) _sceneManager.Update(GraphicsDevice.Viewport);
 
             Window.ClientSizeChanged += OnResize;
 
@@ -169,21 +174,12 @@ namespace TotallyFair
             // TODO: Add your drawing code here
 
             _spriteBatch.Begin();
-            /*_map.Draw(_spriteBatch, _graphics);
-
-            for (int i = 0; i < Players.Length; i++)
+            if (!_paused)
             {
-                _spriteBatch.DrawString(GameFont, $"{Players[i].Hand[0].FaceValue}", Vector_PlayerHand[i], Color.White);
-                _spriteBatch.DrawString(GameFont, $"{Players[i].Hand[1].FaceValue}", new Vector2(Vector_PlayerHand[i].X, Vector_PlayerHand[i].Y + 25), Color.White);
-                Players[i].Sprite.Play(_spriteBatch);
+                _sceneManager.Draw(_spriteBatch, _graphics);
+                _spriteBatch.DrawString(GameFont, $"{_sceneManager.Players[0].Force}", _sceneManager.Players[0].Position, Color.Black);
             }
-            
-
-            //_spriteBatch.Draw(Players[0].Sprite.SpriteTexture, Players[0].Sprite.Position, null, Color.White, Players[0].Sprite.Rotation, new Vector2(Players[0].Sprite.SpriteTexture.Width, Players[0].Sprite.SpriteTexture.Height), 1, SpriteEffects.None, 0);
-            //_spriteBatch.Draw(Players[0].StrikeBox.SpriteTexture, Players[0].StrikeBox.Position, null, Color.White, Players[0].StrikeBox.Rotation, new Vector2(Players[0].StrikeBox.SpriteTexture.Width, Players[0].StrikeBox.SpriteTexture.Height), 1, SpriteEffects.None, 0);
-            */
-            if (!_paused) _sceneManager.Draw(_spriteBatch, _graphics);
-            else _spriteBatch.DrawString(GameFont, "PAUSED", new(_graphics.PreferredBackBufferWidth / 2,_graphics.PreferredBackBufferHeight / 2), Color.White);
+            else _spriteBatch.DrawString(GameFont, "PAUSED", new(_graphics.PreferredBackBufferWidth / 2, _graphics.PreferredBackBufferHeight / 2), Color.White);
             _spriteBatch.End();
             
             base.Draw(gameTime);
@@ -218,39 +214,38 @@ namespace TotallyFair
 
         private void GameAction_FullScreen()
         {
-            //Use Switch to break after action is executed
-            switch (_graphics.IsFullScreen)
-            {
-                case false: _graphics.IsFullScreen = true; break;
-                case true: _graphics.IsFullScreen = false; break;
-            }
+            _graphics.IsFullScreen = !_graphics.IsFullScreen;
             _graphics.ApplyChanges();
         }
 
         private void GameAction_MoveRight()
         {
-            _sceneManager.Collidables[0].UpdateVelocity(new Vector2(2000,0), _settings.TIME_CONSTANT);
+            _sceneManager.Players[0].Force.X += 2000f;
         }
 
         private void GameAction_MoveLeft()
         {
-            _sceneManager.Collidables[0].UpdateVelocity(new Vector2(-2000, 0), _settings.TIME_CONSTANT);
+            _sceneManager.Players[0].Force.X -= 2000f;
         }
 
         private void GameAction_MoveUp()
         {
-            _sceneManager.Collidables[0].UpdateVelocity(new Vector2(0, -2000), _settings.TIME_CONSTANT);
+            _sceneManager.Players[0].Force.Y -= 2000f;
         }
 
         private void GameAction_MoveDown()
         {
-            _sceneManager.Collidables[0].UpdateVelocity(new Vector2(0, 2000), _settings.TIME_CONSTANT);
+            _sceneManager.Players[0].Force.Y += 2000f;
         }
 
         private void GameAction_Attack()
         {
-            //Players[0].StrikeBox.Rotation = (float)Math.Atan(Mouse.GetState().X - (Players[0].Sprite.Position.X + Players[0].Sprite.AnimationLibrary[Players[0].Sprite.CurrentState].Animation.Peek().Width / 2) / (Mouse.GetState().Y - (Players[0].Sprite.Position.Y - Players[0].Sprite.AnimationLibrary[Players[0].Sprite.CurrentState].Animation.Peek().Height / 2)));;
-            //Players[0].StrikeBox.Visible = true;      
+            if (_sceneManager.Projectiles.ContainsKey(10000)) _sceneManager.Projectiles.Remove(10000);
+            Vector2 mousePosition = new(Mouse.GetState().X, Mouse.GetState().Y);
+            double angle = FlatMath.GetAngle(_sceneManager.Players[0].Position, mousePosition);
+            _sceneManager.AddProjectile(10000, _sceneManager.Players[0].Position, AnimationState.IDLE, _bullets, 500f, false);
+            _sceneManager.Projectiles[10000].Force.X += (float)Math.Cos(angle) * 2500f;
+            _sceneManager.Projectiles[10000].Force.Y += (float)Math.Sin(angle) * 2500f;
         }
 
         private void GameAction_PauseGame()

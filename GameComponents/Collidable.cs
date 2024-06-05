@@ -14,8 +14,11 @@ namespace TotallyFair.GameComponents
     {
         public Vector2 Position;
         public Vector2 Velocity;
+        public Vector2 Force;
         public CollisionBox CollisionBox;
         public GameSprite2D Sprite;
+        public float Restitution;
+        public float Mass;
         public string Name;
         public bool IsColliding;
         public bool IsStatic;
@@ -25,6 +28,9 @@ namespace TotallyFair.GameComponents
         {
             Position = new();
             Velocity = new();
+            Restitution = 0.5f;
+            Mass = 5f;
+            Force = new();
             CollisionBox = new(Position, false, 0f);
             Name = "";
             IsColliding = false;
@@ -32,19 +38,20 @@ namespace TotallyFair.GameComponents
             IsCPU = true;
         }
 
-        public Collidable(Vector2 position, string playerName, bool isCPU, bool isStatic, bool isRectangular, float collisionRadius, AnimationState state, Texture2D[] textures, float deltaTime, bool continuous)
+        public Collidable(Vector2 position, string playerName, bool isCPU, bool isStatic, bool isRectangular, AnimationState state, Texture2D[] textures, float deltaTime, bool continuous)
         {
             Position = position;
             Velocity = new();
-            CollisionBox = new(Position, isRectangular, collisionRadius);
+            Restitution = 0.5f;
+            Mass = 5f;
+            Force = new();
+            CollisionBox = new(Position, isRectangular, textures[0].Width / 2);
             Sprite = new GameSprite2D(state, textures, deltaTime, continuous);
             Name = playerName;
             IsStatic = isStatic;
             IsCPU = isCPU;
         }
 
-        public abstract void Update();
-        public abstract void Chase(Vector2 position, float deltaTime);
-        public abstract void UpdateVelocity(Vector2 position, float deltaTime);
+        public abstract void Update(float deltaTime);
     }
 }

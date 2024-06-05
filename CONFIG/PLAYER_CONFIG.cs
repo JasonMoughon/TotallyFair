@@ -31,6 +31,6 @@ namespace TotallyFair.CONFIG
 
         public int MAX_VELOCITY { get; } = 25; //Pixels per Second
 
-        public float DEFAULT_MASS { get; } = 5f;
+        public float DEFAULT_MASS { get; } = 50f;
     }
 }

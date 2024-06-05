@@ -4,23 +4,9 @@ using TotallyFair.Graphics;
 
 namespace TotallyFair.GameComponents
 {
-    public class Consumable : Collidable
+    public class Environmental : Collidable
     {
-        public Consumable()
-        {
-            Position = new();
-            Velocity = new();
-            Restitution = 0.5f;
-            Mass = 5f;
-            Force = new();
-            CollisionBox = new(Position, false, 0f);
-            Name = "";
-            IsColliding = false;
-            IsStatic = true;
-            IsCPU = true;
-        }
-
-        public Consumable(Vector2 position, string name, bool isCPU, bool isStatic, bool isRectangular, AnimationState state, Texture2D[] textures, float deltaTime, bool continuous)
+        public Environmental(Vector2 position, string name, bool isCPU, bool isStatic, bool isRectangular, AnimationState state, Texture2D[] textures, float deltaTime, bool continuous)
         {
             Position = position;
             Velocity = new();

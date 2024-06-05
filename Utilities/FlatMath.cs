@@ -87,5 +87,9 @@ namespace TotallyFair.Utilities
             return a.X * b.Y - a.Y * b.X;
         }
 
+        public static double GetAngle(Vector2 a, Vector2 b)
+        {
+            return Math.Atan2(b.Y - a.Y, b.X - a.X);
+        }
     }
 }
