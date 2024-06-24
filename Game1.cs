@@ -185,7 +185,7 @@ namespace TotallyFair
             base.Draw(gameTime);
         }
 
-        private void OnResize(Object  sender, EventArgs e)
+        private void OnResize(Object sender, EventArgs e)
         {
             //RepositionGameSprites();
         }

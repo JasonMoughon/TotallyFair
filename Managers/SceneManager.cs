@@ -3,13 +3,6 @@ using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
-using System.Linq;
-using System.Net.Security;
-using System.Reflection.Metadata;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
 using TotallyFair.CONFIG;
 using TotallyFair.GameComponents;
 using TotallyFair.Graphics;
@@ -39,7 +32,7 @@ namespace TotallyFair.Managers
         public Dictionary<int, Consumable> Consumables = new();
         public Dictionary<int, Projectile> Projectiles = new();
         public Dictionary<int, Environmental> Environmentals = new(); //Static Environmental Objects
-        private Quad<Type> _collisionManager;
+        private Quad _collisionManager;
         private Camera _camera;
         private GAME_CONFIG _settings;
 
@@ -57,7 +50,7 @@ namespace TotallyFair.Managers
 
             Player p = new($"Player{id}", position, false, false, animationState, textures, deltaTime, continuous);
             Players.Add(id, p);
-            InsertIntoQuad<Player>(id, p);
+            InsertIntoQuad(id, p);
         }
 
         public void RemovePlayer(int id, Vector2 position)
@@ -75,7 +68,7 @@ namespace TotallyFair.Managers
 
             Projectile p = new(position, $"Projectile{id}", true, false, false, animationState, textures, deltaTime, continuous);
             Projectiles.Add(id, p);
-            InsertIntoQuad<Projectile>(id, p);
+            InsertIntoQuad(id, p);
         }
 
         public void RemoveProjectile(int id, Vector2 position)
@@ -93,7 +86,7 @@ namespace TotallyFair.Managers
 
             Consumable c = new(position, $"Projectile{id}", true, false, false, animationState, textures, deltaTime, continuous);
             Consumables.Add(id, c);
-            InsertIntoQuad<Consumable>(id, c);
+            InsertIntoQuad(id, c);
         }
 
         public void RemoveConsumable(int id)
@@ -111,7 +104,7 @@ namespace TotallyFair.Managers
 
             Environmental c = new(position, $"Environment{id}", true, true, true, animationState, textures, deltaTime, continuous);
             Environmentals.Add(id, c);
-            InsertIntoQuad<Environmental>(id, c);
+            InsertIntoQuad(id, c);
         }
 
         public void RemoveEnvironment(int id)
@@ -125,13 +118,11 @@ namespace TotallyFair.Managers
         public void Update(Viewport viewport)
         {
             _camera.UpdateCamera(viewport);
-
             if (Players.Count > 0)
             {
                 foreach (KeyValuePair<int, Player> c in Players)
                 {
-                    Dictionary<int, Type> collidables = _collisionManager.Search(c.Key, c.Value.Position);
-                    Debug.WriteLine(_collisionManager.Delete(c.Key, c.Value.CollisionBox.Center));
+                    Dictionary<int, Vector2> collidables = _collisionManager.Search(c.Key, c.Value.Position);
 
                     //Only update position if player center was found and deleted from quad
                     if (_collisionManager.Delete(c.Key, c.Value.CollisionBox.Center))
@@ -151,7 +142,7 @@ namespace TotallyFair.Managers
 
                         //Finally, insert all points of collision box
                         //Insert Center First
-                        InsertIntoQuad<Player>(c.Key, c.Value);
+                        InsertIntoQuad(c.Key, c.Value);
                     }
                 }
             }
@@ -160,7 +151,7 @@ namespace TotallyFair.Managers
             {
                 foreach (KeyValuePair<int, Consumable> c in Consumables)
                 {
-                    Dictionary<int, Type> collidables = _collisionManager.Search(c.Key, c.Value.Position);
+                    Dictionary<int, Vector2> collidables = _collisionManager.Search(c.Key, c.Value.Position);
 
                     //Only update position if player center was found and deleted from quad
                     if (_collisionManager.Delete(c.Key, c.Value.CollisionBox.Center))
@@ -180,7 +171,7 @@ namespace TotallyFair.Managers
 
                         //Finally, insert all points of collision box
                         //Insert Center First
-                        InsertIntoQuad<Consumable>(c.Key, c.Value);
+                        InsertIntoQuad(c.Key, c.Value);
                     }
                 }
             }
@@ -189,7 +180,7 @@ namespace TotallyFair.Managers
             {
                 foreach (KeyValuePair<int, Projectile> c in Projectiles)
                 {
-                    Dictionary<int, Type> collidables = _collisionManager.Search(c.Key, c.Value.Position);
+                    Dictionary<int, Vector2> collidables = _collisionManager.Search(c.Key, c.Value.Position);
 
                     //Only update position if player center was found and deleted from quad
                     if (_collisionManager.Delete(c.Key, c.Value.CollisionBox.Center))
@@ -209,7 +200,7 @@ namespace TotallyFair.Managers
 
                         //Finally, insert all points of collision box
                         //Insert Center First
-                        InsertIntoQuad<Projectile>(c.Key, c.Value);
+                        InsertIntoQuad(c.Key, c.Value);
                     }
                 }
             }
@@ -218,7 +209,7 @@ namespace TotallyFair.Managers
             {
                 foreach (KeyValuePair<int, Environmental> c in Environmentals)
                 {
-                    Dictionary<int, Type> collidables = _collisionManager.Search(c.Key, c.Value.Position);
+                    Dictionary<int, Vector2> collidables = _collisionManager.Search(c.Key, c.Value.Position);
 
                     //Only update position if player center was found and deleted from quad
                     if (_collisionManager.Delete(c.Key, c.Value.CollisionBox.Center))
@@ -238,7 +229,7 @@ namespace TotallyFair.Managers
 
                         //Finally, insert all points of collision box
                         //Insert Center First
-                        InsertIntoQuad<Environmental>(c.Key, c.Value);
+                        InsertIntoQuad(c.Key, c.Value);
                     }
                 }
             }
@@ -261,13 +252,13 @@ namespace TotallyFair.Managers
             }
         }
 
-        private void InsertIntoQuad<T>(int id, Collidable c)
+        private void InsertIntoQuad(int id, Collidable c)
         {
-            _collisionManager.Insert(id, c.CollisionBox.Center, typeof(T));
-            _collisionManager.Insert(id, c.CollisionBox.GetTopRight(), typeof(T));
-            _collisionManager.Insert(id, c.CollisionBox.GetTopLeft(), typeof(T));
-            _collisionManager.Insert(id, c.CollisionBox.GetBottomRight(), typeof(T));
-            _collisionManager.Insert(id, c.CollisionBox.GetBottomLeft(), typeof(T));
+            _collisionManager.Insert(id, c.CollisionBox.Center);
+            _collisionManager.Insert(id, c.CollisionBox.GetTopRight());
+            _collisionManager.Insert(id, c.CollisionBox.GetTopLeft());
+            _collisionManager.Insert(id, c.CollisionBox.GetBottomRight());
+            _collisionManager.Insert(id, c.CollisionBox.GetBottomLeft());
         }
 
         private void DeleteFromQuad(int id, Collidable c)
@@ -300,7 +291,7 @@ namespace TotallyFair.Managers
                     newPosition.Y + Players[key].CollisionBox.CollisionRadius > SceneMap.Bounds.Height ||
                     newPosition.Y - Players[key].CollisionBox.CollisionRadius < 0)
                     return;
-                
+
                 Players[key].Position = newPosition;
             }
 
@@ -349,12 +340,12 @@ namespace TotallyFair.Managers
             }
         }
 
-        private void UpdatePosition<T>(int key, float deltaTime, Dictionary<int, Type> collidables)
+        private void UpdatePosition<T>(int key, float deltaTime, Dictionary<int, Vector2> collidables)
         {
             //Check for collisions if gameObjects in area
             if (collidables != null)
             {
-                foreach (KeyValuePair<int, Type> c in collidables)
+                foreach (KeyValuePair<int, Vector2> c in collidables)
                 {
                     Vector2 normal;
                     float depth;
@@ -364,7 +355,7 @@ namespace TotallyFair.Managers
                         //Ensure object exists
                         if (!Players.ContainsKey(key)) return;
 
-                        if (c.Value == typeof(Player))
+                        if (c.Key >= 0 && c.Key < 100) //Indicates a PLAYER
                         {
                             //Ensure object exists
                             if (!Players.ContainsKey(c.Key)) return;
@@ -383,7 +374,7 @@ namespace TotallyFair.Managers
                             }
                         }
 
-                        if (c.Value == typeof(Consumable))
+                        if (c.Key >= 100 && c.Key < 1000)
                         {
                             //Ensure object exists
                             if (!Consumables.ContainsKey(c.Key)) return;
@@ -402,7 +393,7 @@ namespace TotallyFair.Managers
                             }
                         }
 
-                        if (c.Value == typeof(Projectile))
+                        if (c.Key >= 1000 && c.Key < 10000)
                         {
                             //Ensure object exists
                             if (!Projectiles.ContainsKey(c.Key)) return;
@@ -421,7 +412,7 @@ namespace TotallyFair.Managers
                             }
                         }
 
-                        if (c.Value == typeof(Collidable))
+                        if (c.Key >= 10000)
                         {
                             //Ensure object exists
                             if (!Environmentals.ContainsKey(c.Key)) return;
@@ -445,7 +436,7 @@ namespace TotallyFair.Managers
 
                     if (typeof(T) == typeof(Projectile))
                     {
-                        if (c.Value == typeof(Player))
+                        if (c.Key >= 0 && c.Key <= 100)
                         {
                             //Ensure object exists
                             if (!Players.ContainsKey(key)) return;

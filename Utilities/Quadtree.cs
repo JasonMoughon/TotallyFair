@@ -1,12 +1,13 @@
 ﻿using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 
 
 namespace TotallyFair.Utilities
 {
     // The main quadtree class
-    class Quad<T>
+    class Quad
     {
         public bool HasChildren = false;
         // Hold details of the boundary of this node
@@ -14,19 +15,19 @@ namespace TotallyFair.Utilities
         private Vector2 _botRight;
 
         // Contains details of node
-        public Dictionary<int, T> NodeList;
+        public Dictionary<int, Vector2> NodeList;
 
         // Children of this tree
-        private Quad<T> _topLeftTree;
-        private Quad<T> _topRightTree;
-        private Quad<T> _botLeftTree;
-        private Quad<T> _botRightTree;
+        private Quad _topLeftTree;
+        private Quad _topRightTree;
+        private Quad _botLeftTree;
+        private Quad _botRightTree;
 
         public Quad()
         {
             _topLeft = new Vector2(0, 0);
             _botRight = new Vector2(0, 0);
-            NodeList = new Dictionary<int, T>();
+            NodeList = new Dictionary<int, Vector2>();
             _topLeftTree = null;
             _topRightTree = null;
             _botLeftTree = null;
@@ -35,7 +36,7 @@ namespace TotallyFair.Utilities
 
         public Quad(Vector2 topL, Vector2 botR)
         {
-            NodeList = new Dictionary<int, T>();
+            NodeList = new Dictionary<int, Vector2>();
             _topLeftTree = null;
             _topRightTree = null;
             _botLeftTree = null;
@@ -44,7 +45,7 @@ namespace TotallyFair.Utilities
             _botRight = botR;
         }
 
-        public void Insert(int id, Vector2 pos, T obj)
+        public void Insert(int id, Vector2 pos)
         {
             /*
              * Place Node into appropriate quad
@@ -54,20 +55,22 @@ namespace TotallyFair.Utilities
             if (NodeList.ContainsKey(id)) return;
 
             //Two or less nodes in Quad or Quad has reached size minimum
-            if (NodeList.Count <= 4 && !HasChildren || Math.Abs(_topLeft.X - _botRight.X) <= 50 && Math.Abs(_topLeft.Y - _botRight.Y) <= 50 && !HasChildren)
-                    NodeList.Add(id, obj);
+            if (NodeList.Count < 4 && !HasChildren || Math.Abs(_topLeft.X - _botRight.X) <= 50 && Math.Abs(_topLeft.Y - _botRight.Y) <= 50 && !HasChildren)
+            {
+                NodeList.Add(id, pos);
+            }
             else
             {
                 //First take nodes of existing parent quad and insert them into child quads, then delete from parent
-                foreach (KeyValuePair<int, T> parentNode in NodeList) InsertIntoChild(parentNode.Key, pos, parentNode.Value);
+                foreach (KeyValuePair<int, Vector2> parentNode in NodeList) InsertIntoChild(parentNode.Key, parentNode.Value);
                 NodeList.Clear();
                 //Insert into child Quad
-                InsertIntoChild(id, pos, obj);
+                InsertIntoChild(id, pos);
                 HasChildren = true;
             }   
         }
 
-        public Dictionary<int,T> Search(int id, Vector2 pos)
+        public Dictionary<int,Vector2> Search(int id, Vector2 pos)
         {
             /*
              * Search for a desired node by position, return dictionary that contains the id in question
@@ -77,10 +80,10 @@ namespace TotallyFair.Utilities
             if (!InBoundary(pos))
                 return null;
 
-            if ((_topLeft.X + _botRight.X) / 2 >= pos.X)
+            if (_topLeft.X + ((_botRight.X - _topLeft.X) / 2) >= pos.X)
             {
                 // Indicates topLeftTree
-                if ((_topLeft.Y + _botRight.Y) / 2 >= pos.Y)
+                if (_topLeft.Y + ((_botRight.Y - _topLeft.Y) / 2) >= pos.Y)
                 {
                     if (_topLeftTree == null && NodeList.ContainsKey(id))
                         return NodeList;
@@ -102,7 +105,7 @@ namespace TotallyFair.Utilities
             else
             {
                 // Indicates topRightTree
-                if ((_topLeft.Y + _botRight.Y) / 2 >= pos.Y)
+                if (_topLeft.Y + ((_botRight.Y - _topLeft.Y) / 2) >= pos.Y)
                 {
                     if (_topRightTree == null && NodeList.ContainsKey(id))
                         return NodeList;
@@ -133,10 +136,10 @@ namespace TotallyFair.Utilities
             if (!InBoundary(pos))
                 return false;
 
-            if ((_topLeft.X + _botRight.X) / 2 >= pos.X)
+            if (_topLeft.X + ((_botRight.X - _topLeft.X) / 2) >= pos.X)
             {
                 // Indicates topLeftTree
-                if ((_topLeft.Y + _botRight.Y) / 2 >= pos.Y)
+                if (_topLeft.Y + ((_botRight.Y - _topLeft.Y) / 2) >= pos.Y)
                 {
                     if (_topLeftTree == null && NodeList.ContainsKey(id))
                     {
@@ -164,7 +167,7 @@ namespace TotallyFair.Utilities
             else
             {
                 // Indicates topRightTree
-                if ((_topLeft.Y + _botRight.Y) / 2 >= pos.Y)
+                if (_topLeft.Y + ((_botRight.Y - _topLeft.Y) / 2) >= pos.Y)
                 {
                     if (_topRightTree == null && NodeList.ContainsKey(id))
                     {
@@ -198,76 +201,70 @@ namespace TotallyFair.Utilities
              */
             if (_topLeftTree != null)
             {
-                if (_topLeftTree.NodeList.Count == 0 && !_topLeftTree.HasChildren) _topLeftTree = null;
+                if (_topLeftTree.NodeList.Count == 0 && !_topLeftTree.HasChildren) { _topLeftTree = null; }
                 else _topLeftTree.CleanUp();
             }
             if (_topRightTree != null)
             {
-                if (_topRightTree.NodeList.Count == 0 && !_topRightTree.HasChildren) _topRightTree = null;
+                if (_topRightTree.NodeList.Count == 0 && !_topRightTree.HasChildren) { _topRightTree = null; }
                 else _topRightTree.CleanUp();
             }
             if (_botLeftTree != null)
             {
-                if (_botLeftTree.NodeList.Count == 0 && !_botLeftTree.HasChildren) _botLeftTree = null;
+                if (_botLeftTree.NodeList.Count == 0 && !_botLeftTree.HasChildren) { _botLeftTree = null; }
                 else _botLeftTree.CleanUp();
             }
             if (_botRightTree != null)
             {
-                if (_botRightTree.NodeList.Count == 0 && !_botRightTree.HasChildren) _botRightTree = null;
+                if (_botRightTree.NodeList.Count == 0 && !_botRightTree.HasChildren) { _botRightTree = null; }
                 else _botRightTree.CleanUp();
             }
         }
 
-        private void InsertIntoChild(int id, Vector2 pos, T obj)
+        private void InsertIntoChild(int id, Vector2 pos)
         {
-            if ((_topLeft.X + _botRight.X) / 2 >= pos.X)
+            if (_topLeft.X + ((_botRight.X - _topLeft.X) / 2) >= pos.X)
             {
                 // Indicates topLeftTree
-                if ((_topLeft.Y + _botRight.Y) / 2 >= pos.Y)
+                if (_topLeft.Y + ((_botRight.Y - _topLeft.Y) / 2) >= pos.Y)
                 {
                     if (_topLeftTree == null)
-                        _topLeftTree = new Quad<T>(
+                        _topLeftTree = new Quad(
                             new Vector2(_topLeft.X, _topLeft.Y),
-                            new Vector2((_topLeft.X + _botRight.X) / 2,
-                                        (_topLeft.Y + _botRight.Y) / 2));
-                    _topLeftTree.Insert(id, pos, obj);
+                            new Vector2(_topLeft.X + ((_botRight.X - _topLeft.X) / 2), _topLeft.Y + ((_botRight.Y - _topLeft.Y) / 2)));
+                    _topLeftTree.Insert(id, pos);
                 }
 
                 // Indicates botLeftTree
                 else
                 {
                     if (_botLeftTree == null)
-                        _botLeftTree = new Quad<T>(
-                            new Vector2(_topLeft.X,
-                                        (_topLeft.Y + _botRight.Y) / 2),
-                            new Vector2((_topLeft.X + _botRight.X) / 2,
-                                        _botRight.Y));
-                    _botLeftTree.Insert(id, pos, obj);
+                        _botLeftTree = new Quad(
+                            new Vector2(_topLeft.X, _topLeft.Y + ((_botRight.Y - _topLeft.Y) / 2)),
+                            new Vector2(_topLeft.X + ((_botRight.X - _topLeft.X) / 2),  _botRight.Y));
+                    _botLeftTree.Insert(id, pos);
                 }
             }
             else
             {
                 // Indicates topRightTree
-                if ((_topLeft.Y + _botRight.Y) / 2 >= pos.Y)
+                if (_topLeft.Y + ((_botRight.Y - _topLeft.Y) / 2) >= pos.Y)
                 {
                     if (_topRightTree == null)
-                        _topRightTree = new Quad<T>(
-                            new Vector2((_topLeft.X + _botRight.X) / 2,
-                                        _topLeft.Y),
-                            new Vector2(_botRight.X,
-                                        (_topLeft.Y + _botRight.Y) / 2));
-                    _topRightTree.Insert(id, pos, obj);
+                        _topRightTree = new Quad(
+                            new Vector2(_topLeft.X + ((_botRight.X - _topLeft.X) / 2), _topLeft.Y),
+                            new Vector2(_botRight.X, _topLeft.Y + ((_botRight.Y - _topLeft.Y) / 2)));
+                    _topRightTree.Insert(id, pos);
                 }
 
                 // Indicates botRightTree
                 else
                 {
                     if (_botRightTree == null)
-                        _botRightTree = new Quad<T>(
-                            new Vector2((_topLeft.X + _botRight.X) / 2,
-                                        (_topLeft.Y + _botRight.Y) / 2),
+                        _botRightTree = new Quad(
+                            new Vector2(_topLeft.X + ((_botRight.X - _topLeft.X) / 2), _topLeft.Y + ((_botRight.Y - _topLeft.Y) / 2)),
                             new Vector2(_botRight.X, _botRight.Y));
-                    _botRightTree.Insert(id, pos, obj);
+                    _botRightTree.Insert(id, pos);
                 }
             }
         }
